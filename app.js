@@ -372,29 +372,45 @@ function handleMediaImport(files) {
             type = 'image';
         }
 
-        const id = 'asset_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         const url = URL.createObjectURL(file);
         
-        // 로컬 가상 윈도우 파일 기본 경로 정의 (D:\Study\WebPage\sVidEditor\source\...)
-        const localPath = `D:\\Study\\WebPage\\sVidEditor\\source\\${file.name}`;
-        
-        const asset = {
-            id,
-            name: file.name,
-            type,
-            url,
-            file,
-            localPath,
-            duration: 0
-        };
+        // 기존에 로드된 프로젝트 에셋(url이 비어있는 상태) 중 이름이 일치하는 것이 있는지 검사
+        let existingAsset = STATE.assets.find(a => a.name === file.name && !a.url);
+        if (!existingAsset) {
+            // 프로젝트 로드 상태가 아니더라도 이름이 같은 에셋이 있다면 해당 에셋을 덮어씀
+            existingAsset = STATE.assets.find(a => a.name === file.name);
+        }
 
-        // 브라우저 메타데이터 읽기
+        // 기존 에셋이 없다면 새 에셋 객체 정의
+        let asset = existingAsset;
+        if (!existingAsset) {
+            const id = 'asset_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            const localPath = `D:\\Study\\WebPage\\sVidEditor\\source\\${file.name}`;
+            asset = {
+                id,
+                name: file.name,
+                type,
+                url,
+                file,
+                localPath,
+                duration: 0
+            };
+        } else {
+            // 기존 에셋 정보 업데이트
+            existingAsset.url = url;
+            existingAsset.file = file;
+        }
+
+        // 브라우저 메타데이터 읽기 및 상태 반영
         if (type === 'video') {
             const tempVideo = document.createElement('video');
             tempVideo.src = url;
             tempVideo.onloadedmetadata = () => {
                 asset.duration = tempVideo.duration;
-                STATE.assets.push(asset);
+                asset.isPreviewDisabled = false;
+                if (!existingAsset) {
+                    STATE.assets.push(asset);
+                }
                 createHiddenPlayer(asset);
                 checkLoadComplete();
             };
@@ -402,7 +418,9 @@ function handleMediaImport(files) {
                 console.warn("브라우저에서 직접 프리뷰가 불가능한 비디오 코덱/포맷입니다. (FFmpeg 로컬 렌더링은 가능):", file.name);
                 asset.duration = 10.0; // 기본 지속시간 임시 할당
                 asset.isPreviewDisabled = true;
-                STATE.assets.push(asset);
+                if (!existingAsset) {
+                    STATE.assets.push(asset);
+                }
                 createHiddenPlayer(asset);
                 checkLoadComplete();
             };
@@ -411,7 +429,10 @@ function handleMediaImport(files) {
             tempAudio.src = url;
             tempAudio.onloadedmetadata = () => {
                 asset.duration = tempAudio.duration;
-                STATE.assets.push(asset);
+                asset.isPreviewDisabled = false;
+                if (!existingAsset) {
+                    STATE.assets.push(asset);
+                }
                 createHiddenPlayer(asset);
                 checkLoadComplete();
             };
@@ -419,13 +440,17 @@ function handleMediaImport(files) {
                 console.warn("브라우저에서 직접 프리뷰가 불가능한 오디오 코덱/포맷입니다. (FFmpeg 로컬 렌더링은 가능):", file.name);
                 asset.duration = 10.0; // 기본 지속시간 임시 할당
                 asset.isPreviewDisabled = true;
-                STATE.assets.push(asset);
+                if (!existingAsset) {
+                    STATE.assets.push(asset);
+                }
                 createHiddenPlayer(asset);
                 checkLoadComplete();
             };
         } else if (type === 'image') {
             asset.duration = 5.0; // 이미지는 기본 지속시간 5초 설정
-            STATE.assets.push(asset);
+            if (!existingAsset) {
+                STATE.assets.push(asset);
+            }
             checkLoadComplete();
         }
 
@@ -434,6 +459,9 @@ function handleMediaImport(files) {
             if (loadedCount === files.length) {
                 DOM.previewOverlay.classList.add('hide');
                 updateAssetListUI();
+                updateTimelineClipsUI();
+                renderPreview();
+                updateFFmpegCommand();
             }
         }
     });
@@ -441,6 +469,13 @@ function handleMediaImport(files) {
 
 function createHiddenPlayer(asset) {
     if (asset.type === 'image') return;
+    
+    // 이미 해당 에셋 ID를 가진 플레이어가 활성화되어 있다면 src 주소만 갱신
+    if (activePlayers[asset.id]) {
+        activePlayers[asset.id].src = asset.url;
+        activePlayers[asset.id].dataset.unlocked = 'false'; // 새로운 주소이므로 잠금 해제 플래그 리셋
+        return;
+    }
     
     let el;
     if (asset.type === 'video') {
