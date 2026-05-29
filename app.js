@@ -304,11 +304,23 @@ function handleMediaImport(files) {
     let loadedCount = 0;
     
     Array.from(files).forEach(file => {
-        // 미디어 파일 확장자 및 기본 타입 식별
+        // 미디어 파일 확장자 및 기본 타입 식별 (브라우저가 인식하지 못하는 포맷 대비 확장자 기반 감지 포함)
         let type = 'video';
-        if (file.type.startsWith('audio/')) {
+        const fileNameLower = file.name.toLowerCase();
+        
+        if (file.type.startsWith('audio/') || 
+            fileNameLower.endsWith('.mp3') || 
+            fileNameLower.endsWith('.wav') || 
+            fileNameLower.endsWith('.m4a') || 
+            fileNameLower.endsWith('.aac') || 
+            fileNameLower.endsWith('.flac') || 
+            fileNameLower.endsWith('.wma') || 
+            fileNameLower.endsWith('.ogg')) {
             type = 'audio';
-        } else if (file.type.startsWith('image/') || file.name.endsWith('.png')) {
+        } else if (file.type.startsWith('image/') || 
+                   fileNameLower.endsWith('.png') || 
+                   fileNameLower.endsWith('.jpg') || 
+                   fileNameLower.endsWith('.jpeg')) {
             type = 'image';
         }
 
@@ -339,7 +351,11 @@ function handleMediaImport(files) {
                 checkLoadComplete();
             };
             tempVideo.onerror = () => {
-                console.error("영상 정보를 읽을 수 없습니다:", file.name);
+                console.warn("브라우저에서 직접 프리뷰가 불가능한 비디오 코덱/포맷입니다. (FFmpeg 로컬 렌더링은 가능):", file.name);
+                asset.duration = 10.0; // 기본 지속시간 임시 할당
+                asset.isPreviewDisabled = true;
+                STATE.assets.push(asset);
+                createHiddenPlayer(asset);
                 checkLoadComplete();
             };
         } else if (type === 'audio') {
@@ -352,7 +368,11 @@ function handleMediaImport(files) {
                 checkLoadComplete();
             };
             tempAudio.onerror = () => {
-                console.error("오디오 정보를 읽을 수 없습니다:", file.name);
+                console.warn("브라우저에서 직접 프리뷰가 불가능한 오디오 코덱/포맷입니다. (FFmpeg 로컬 렌더링은 가능):", file.name);
+                asset.duration = 10.0; // 기본 지속시간 임시 할당
+                asset.isPreviewDisabled = true;
+                STATE.assets.push(asset);
+                createHiddenPlayer(asset);
                 checkLoadComplete();
             };
         } else if (type === 'image') {
@@ -1225,6 +1245,37 @@ function renderPreview() {
 function drawVideoClip(clip, time, x, y, w, h) {
     const player = activePlayers[clip.assetId];
     if (!player) return;
+
+    const asset = STATE.assets.find(a => a.id === clip.assetId);
+    if (asset && asset.isPreviewDisabled) {
+        ctx.save();
+        const cx = x + w / 2;
+        const cy = y + h / 2;
+        ctx.translate(cx, cy);
+        
+        if (clip.rotation !== 0) {
+            ctx.rotate((clip.rotation * Math.PI) / 180);
+        }
+
+        ctx.fillStyle = '#1e1e24';
+        ctx.fillRect(-w / 2, -h / 2, w, h);
+        
+        ctx.strokeStyle = '#ff1744';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-w / 2 + 5, -h / 2 + 5, w - 10, h - 10);
+        
+        ctx.fillStyle = '#ff1744';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('브라우저 프리뷰 불가 포맷', 0, -8);
+        ctx.fillStyle = '#8e8e93';
+        ctx.font = '8px sans-serif';
+        ctx.fillText('(로컬 FFmpeg 렌더링은 지원됨)', 0, 8);
+        
+        ctx.restore();
+        return;
+    }
 
     const clipElapsed = time - clip.timelineStart;
     const sourcePlayTime = clip.sourceStart + clipElapsed;
