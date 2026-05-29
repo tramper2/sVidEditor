@@ -26,6 +26,10 @@ const STATE = {
     playerLastSeekTimes: {} // 플레이어별 마지막 Seek 타임스탬프 (ms, 싱크 지터 방지)
 };
 
+// 비디오 효과 렌더링용 임시 버퍼 캔버스 (Chromium 비디오 필터 가속 버그 우회용)
+const filterBufferCanvas = document.createElement('canvas');
+const filterBufferCtx = filterBufferCanvas.getContext('2d');
+
 // --- DOM 요소 캐싱 ---
 const DOM = {
     btnNewProject: document.getElementById('btn-new-project'),
@@ -97,6 +101,7 @@ const DOM = {
     propTextX: document.getElementById('prop-text-x'),
     propTextY: document.getElementById('prop-text-y'),
     btnApplyProperties: document.getElementById('btn-apply-properties'),
+    propVideoEffectsList: document.getElementById('prop-video-effects-list'),
     btnDeleteClip: document.getElementById('btn-delete-clip'),
     
     hiddenPlayersContainer: document.getElementById('hidden-players-container'),
@@ -627,6 +632,34 @@ function selectClip(clipId) {
         DOM.propRotation.value = clip.rotation;
         DOM.propVolume.value = clip.volume;
         DOM.propVolumeLabel.textContent = Math.round(clip.volume * 100);
+        
+        // 적용된 비디오 효과 배지 렌더링
+        DOM.propVideoEffectsList.innerHTML = '';
+        if (clip.effects && clip.effects.length > 0) {
+            clip.effects.forEach(eff => {
+                const badge = document.createElement('span');
+                badge.className = 'prop-effect-badge';
+                badge.innerHTML = `
+                    <span>${eff.toUpperCase()}</span>
+                    <span class="remove-effect-btn" data-effect="${eff}">&times;</span>
+                `;
+                
+                // 효과 개별 삭제 이벤트
+                badge.querySelector('.remove-effect-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const targetEff = e.target.dataset.effect;
+                    clip.effects = clip.effects.filter(x => x !== targetEff);
+                    updateTimelineClipsUI();
+                    renderPreview();
+                    updateFFmpegCommand();
+                    selectClip(clip.id);
+                });
+                
+                DOM.propVideoEffectsList.appendChild(badge);
+            });
+        } else {
+            DOM.propVideoEffectsList.innerHTML = '<span class="empty-list-msg" style="font-size: 0.75rem;">적용된 효과 없음</span>';
+        }
         
         if (clip.track === 'video2') {
             DOM.pipPropertiesSection.classList.remove('hide');
@@ -1281,11 +1314,45 @@ function updateTimelineClipsUI() {
     });
 }
 
-// 효과 라이브러리 항목 드래그 세팅
+// 효과 라이브러리 항목 드래그 및 클릭 적용 세팅
 document.querySelectorAll('.effect-item').forEach(item => {
     item.addEventListener('dragstart', (e) => {
         e.dataTransfer.setData('text/effect', item.dataset.effect);
         e.dataTransfer.effectAllowed = 'copy';
+    });
+    
+    // 클릭 시 선택된 클립에 바로 효과 적용하는 편의성 인터랙션 연동
+    item.addEventListener('click', () => {
+        if (STATE.selectedClipId) {
+            const clip = STATE.clips.find(c => c.id === STATE.selectedClipId);
+            if (clip) {
+                const effectName = item.dataset.effect;
+                
+                // 비디오 트랙 클립에만 필터 적용 가능 예외 처리
+                if (clip.track !== 'video1' && clip.track !== 'video2') {
+                    alert("비디오 효과는 비디오 트랙(Video 1, Video 2) 클립에만 적용 가능합니다.");
+                    return;
+                }
+                
+                if (!clip.effects) clip.effects = [];
+                if (!clip.effects.includes(effectName)) {
+                    clip.effects.push(effectName);
+                    updateTimelineClipsUI();
+                    renderPreview();
+                    updateFFmpegCommand();
+                    selectClip(clip.id);
+                } else {
+                    // 이미 있으면 효과 제거 (토글 기능 지원)
+                    clip.effects = clip.effects.filter(eff => eff !== effectName);
+                    updateTimelineClipsUI();
+                    renderPreview();
+                    updateFFmpegCommand();
+                    selectClip(clip.id);
+                }
+            }
+        } else {
+            alert("효과를 적용할 클립을 타임라인에서 먼저 선택한 후 클릭해 주세요.");
+        }
     });
 });
 
@@ -1458,7 +1525,27 @@ function drawVideoClip(clip, time, x, y, w, h) {
     }
 
     try {
-        ctx.drawImage(player, -finalW / 2, -finalH / 2, finalW, finalH);
+        // 비디오 효과(grayscale 등)가 있고 브라우저 비디오 텍스처 고속 렌더 버그를 방지하기 위해 버퍼 캔버스를 경유하여 렌더링
+        if (clip.effects && clip.effects.length > 0) {
+            // 비디오의 본래 해상도에 맞게 버퍼 크기 조절
+            const videoW = player.videoWidth || player.width || 640;
+            const videoH = player.videoHeight || player.height || 360;
+            
+            if (filterBufferCanvas.width !== videoW || filterBufferCanvas.height !== videoH) {
+                filterBufferCanvas.width = videoW;
+                filterBufferCanvas.height = videoH;
+            }
+            
+            // 임시 버퍼에 비디오 프레임을 먼저 그립니다 (필터 없음)
+            filterBufferCtx.clearRect(0, 0, videoW, videoH);
+            filterBufferCtx.drawImage(player, 0, 0, videoW, videoH);
+            
+            // 필터가 적용된 버퍼 캔버스를 메인 캔버스에 그립니다.
+            ctx.drawImage(filterBufferCanvas, -finalW / 2, -finalH / 2, finalW, finalH);
+        } else {
+            // 효과가 없을 때는 성능 최적화를 위해 직접 비디오를 그림
+            ctx.drawImage(player, -finalW / 2, -finalH / 2, finalW, finalH);
+        }
     } catch (e) {
         // 비디오 로드 대기 중 에러 처리
         ctx.fillStyle = '#1e1e24';
