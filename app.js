@@ -358,6 +358,18 @@ function handleMediaImport(files) {
 
     DOM.previewOverlay.classList.remove('hide');
     let loadedCount = 0;
+
+    // 안전장치: 6초 후에도 로딩 오버레이가 안 닫히면 강제로 닫음
+    const safetyTimeout = setTimeout(() => {
+        if (!DOM.previewOverlay.classList.contains('hide')) {
+            console.warn("[sVidEditor] 미디어 로드가 지연되어 로딩 오버레이를 강제로 닫습니다.");
+            DOM.previewOverlay.classList.add('hide');
+            updateAssetListUI();
+            updateTimelineClipsUI();
+            renderPreview();
+            updateFFmpegCommand();
+        }
+    }, 6000);
     
     Array.from(files).forEach(file => {
         // 미디어 파일 확장자 및 기본 타입 식별 (브라우저가 인식하지 못하는 포맷 대비 확장자 기반 감지 포함)
@@ -415,9 +427,9 @@ function handleMediaImport(files) {
         }
 
         // 브라우저 메타데이터 읽기 및 상태 반영
+        // 레이스 컨디션 방지를 위해 온로드/에러 핸들러를 먼저 붙인 후 src를 대입합니다.
         if (type === 'video') {
             const tempVideo = document.createElement('video');
-            tempVideo.src = url;
             tempVideo.onloadedmetadata = () => {
                 asset.duration = tempVideo.duration;
                 asset.isPreviewDisabled = false;
@@ -437,9 +449,9 @@ function handleMediaImport(files) {
                 createHiddenPlayer(asset);
                 checkLoadComplete();
             };
+            tempVideo.src = url;
         } else if (type === 'audio') {
             const tempAudio = document.createElement('audio');
-            tempAudio.src = url;
             tempAudio.onloadedmetadata = () => {
                 asset.duration = tempAudio.duration;
                 asset.isPreviewDisabled = false;
@@ -459,6 +471,7 @@ function handleMediaImport(files) {
                 createHiddenPlayer(asset);
                 checkLoadComplete();
             };
+            tempAudio.src = url;
         } else if (type === 'image') {
             asset.duration = 5.0; // 이미지는 기본 지속시간 5초 설정
             if (!existingAsset) {
@@ -470,6 +483,7 @@ function handleMediaImport(files) {
         function checkLoadComplete() {
             loadedCount++;
             if (loadedCount === files.length) {
+                clearTimeout(safetyTimeout);
                 DOM.previewOverlay.classList.add('hide');
                 updateAssetListUI();
                 updateTimelineClipsUI();
@@ -502,7 +516,6 @@ function createHiddenPlayer(asset) {
         el = document.createElement('audio');
     }
     
-    el.src = asset.url;
     el.preload = 'auto';
     el.dataset.assetId = asset.id;
     
@@ -510,6 +523,9 @@ function createHiddenPlayer(asset) {
     el.addEventListener('seeked', () => { if (!STATE.isPlaying) renderPreview(); });
     el.addEventListener('loadeddata', () => { renderPreview(); });
     el.addEventListener('canplay', () => { renderPreview(); });
+    
+    // 레이스 컨디션 방지: 리스너 부착 완료 후 src 지정
+    el.src = asset.url;
     
     DOM.hiddenPlayersContainer.appendChild(el);
     activePlayers[asset.id] = el;
