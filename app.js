@@ -903,7 +903,10 @@ function updatePlayheadPosition() {
         const visibleWidth = container.clientWidth - 140;
         
         if (playheadLeft > scrollLeft + visibleWidth - 50) {
-            c    updatePlayheadPosition();
+            container.scrollLeft = playheadLeft - visibleWidth + 100;
+        }
+    }
+    
     updateTimeDisplay();
     syncHiddenPlayersTime();
     renderPreview();
