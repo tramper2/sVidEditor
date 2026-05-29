@@ -921,23 +921,21 @@ function drawRuler() {
     
     const zoom = STATE.timelineZoom;
     const container = DOM.timelineScrollContainer;
-    // 왼쪽 헤더 너비(140px)를 감안한 스크롤 오프셋 계산
     const scrollLeft = container ? container.scrollLeft : 0;
     
-    // 눈금 영역은 140px 헤더 이후부터 그려짐
-    // 가시 영역 계산
+    // Canvas의 물리 원점 x = 0 이 곧 타임라인 0초이므로, 
+    // 가시 영역 내 시작 초 및 끝 초를 계산합니다.
     const startSec = Math.floor(scrollLeft / zoom);
-    const endSec = Math.ceil((scrollLeft + width - 140) / zoom);
+    const endSec = Math.ceil((scrollLeft + width) / zoom);
     
-    // 눈금자가 시작되는 140px 영역을 클리핑하거나 오프셋 반영하여 렌더링
     ctx.save();
     
     // 눈금 선들을 루프로 렌더링
     for (let sec = startSec; sec <= endSec; sec++) {
-        // 실제 화면상에서의 X 좌표 계산 (헤더 140px 오프셋 반영)
-        const x = 140 + (sec * zoom) - scrollLeft;
+        // 실제 화면상에서의 X 좌표 계산 (Canvas 원점이 곧 0초)
+        const x = (sec * zoom) - scrollLeft;
         
-        if (x < 140) continue; // 헤더 영역 침범 방지
+        if (x < 0 || x > width) continue;
         
         // 1초 단위 주 눈금
         ctx.beginPath();
@@ -953,7 +951,7 @@ function drawRuler() {
         // 0.1초 단위 보조 눈금
         for (let sub = 1; sub < 10; sub++) {
             const sx = x + (sub * zoom) / 10;
-            if (sx >= 140 && sx <= width) {
+            if (sx >= 0 && sx <= width) {
                 ctx.beginPath();
                 ctx.moveTo(sx, height);
                 ctx.lineTo(sx, height - 6);
@@ -963,6 +961,27 @@ function drawRuler() {
     }
     
     ctx.restore();
+}
+
+// 타임라인 눈금자 클릭/드래그 시 재생헤드 스크러빙 처리 함수
+function scrub(e) {
+    const canvas = DOM.timelineRuler;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    
+    // Canvas 영역 내에서의 마우스 상대 X 좌표 계산
+    const x = e.clientX - rect.left;
+    
+    const container = DOM.timelineScrollContainer;
+    const scrollLeft = container ? container.scrollLeft : 0;
+    
+    const zoom = STATE.timelineZoom;
+    // Canvas 원점 x = 0 이 곧 타임라인 0초이므로 스크롤량만 더해 계산
+    const time = Math.max(0, (x + scrollLeft) / zoom);
+    
+    // 재생헤드 시간 업데이트 및 프리뷰 갱신
+    STATE.playheadTime = parseFloat(time.toFixed(2));
+    updatePlayheadPosition();
 }
 
 function updatePlayheadPosition() {
