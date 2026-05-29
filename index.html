@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sVidEditor - 웹 기반 프리뷰 로컬 FFmpeg 비디오 에디터</title>
+    <meta name="description" content="웹 브라우저에서 편리하게 동영상을 컷 편집, 자막 추가, PIP 설정 및 오디오 믹싱을 수행하고, 로컬에서 고화질로 일괄 렌더링하기 위한 FFmpeg 명령어를 생성하는 스마트 비디오 편집기입니다.">
+    <!-- Google Fonts: Outfit & Noto Sans KR -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 상단 헤더 영역 -->
+        <header class="app-header">
+            <div class="logo">
+                <i class="fa-solid fa-wand-magic-sparkles logo-icon"></i>
+                <h1>sVidEditor <span class="badge">v1.0 (Windows)</span></h1>
+            </div>
+            <div class="project-actions">
+                <button id="btn-new-project" class="btn btn-secondary" title="새로운 프로젝트로 초기화합니다.">
+                    <i class="fa-solid fa-file-circle-plus"></i> 새 프로젝트
+                </button>
+                <button id="btn-load-project" class="btn btn-secondary" title="저장된 project.json 파일을 가져옵니다.">
+                    <i class="fa-solid fa-folder-open"></i> 불러오기
+                    <input type="file" id="input-load-project" accept=".json" style="display: none;">
+                </button>
+                <button id="btn-save-project" class="btn btn-secondary" title="현재 편집 상태를 JSON 파일로 다운로드합니다.">
+                    <i class="fa-solid fa-floppy-disk"></i> 프로젝트 저장
+                </button>
+                <button id="btn-export-script" class="btn btn-primary" title="로컬 렌더링을 위한 Windows 배치 파일을 다운로드합니다.">
+                    <i class="fa-solid fa-bolt"></i> 렌더링 배치파일 내보내기
+                </button>
+            </div>
+        </header>
+
+        <!-- 메인 본문 영역 (좌측/중앙/우측 레이아웃) -->
+        <main class="app-main">
+            <!-- 좌측 사이드바: 미디어 라이브러리 및 효과 트랙 -->
+            <section class="panel panel-left" id="panel-media">
+                <div class="panel-header">
+                    <h2><i class="fa-solid fa-photo-film"></i> 미디어 라이브러리</h2>
+                </div>
+                <div class="panel-body">
+                    <!-- 미디어 임포트 영역 -->
+                    <div class="media-importer" id="media-dropzone">
+                        <i class="fa-solid fa-cloud-arrow-up cloud-icon"></i>
+                        <p>비디오, 오디오 및 이미지 가져오기</p>
+                        <span class="sub-text">파일을 끌어다 놓거나 아래 버튼 클릭</span>
+                        <input type="file" id="input-media" multiple accept="video/*,audio/*,image/png" style="display:none;">
+                        <button class="btn btn-sm btn-outline" onclick="document.getElementById('input-media').click()">파일 선택</button>
+                    </div>
+
+                    <!-- 소스 에셋 목록 -->
+                    <div class="asset-list-container">
+                        <h3>가져온 미디어 목록</h3>
+                        <ul id="asset-list" class="asset-list">
+                            <!-- JS를 통해 동적 생성 -->
+                            <li class="empty-list-msg">미디어 파일이 없습니다.</li>
+                        </ul>
+                    </div>
+
+                    <!-- 드래그 가능한 효과 라이브러리 -->
+                    <div class="effects-container">
+                        <h3><i class="fa-solid fa-sliders"></i> 효과 라이브러리 <span class="help-tip" title="효과 아이콘을 타임라인의 클립 위에 드래그해 올리세요."><i class="fa-solid fa-circle-question"></i></span></h3>
+                        <div class="effects-grid">
+                            <div class="effect-item" draggable="true" data-effect="sepia">
+                                <div class="effect-icon sepia-color"><i class="fa-solid fa-palette"></i></div>
+                                <span>세피아 필터</span>
+                            </div>
+                            <div class="effect-item" draggable="true" data-effect="grayscale">
+                                <div class="effect-icon gray-color"><i class="fa-solid fa-circle-half-stroke"></i></div>
+                                <span>흑백 필터</span>
+                            </div>
+                            <div class="effect-item" draggable="true" data-effect="reverse">
+                                <div class="effect-icon reverse-color"><i class="fa-solid fa-backward"></i></div>
+                                <span>비디오 리버스</span>
+                            </div>
+                            <div class="effect-item" draggable="true" data-effect="zoom_in">
+                                <div class="effect-icon zoom-in-color"><i class="fa-solid fa-magnifying-glass-plus"></i></div>
+                                <span>클립 줌인</span>
+                            </div>
+                            <div class="effect-item" draggable="true" data-effect="zoom_out">
+                                <div class="effect-icon zoom-out-color"><i class="fa-solid fa-magnifying-glass-minus"></i></div>
+                                <span>클립 줌아웃</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 중앙: 프리뷰 모니터 & 최종 내보내기 코드 -->
+            <section class="panel panel-center">
+                <!-- 프리뷰 플레이어 -->
+                <div class="preview-container">
+                    <div class="panel-header">
+                        <h2><i class="fa-solid fa-play"></i> 실시간 브라우저 프리뷰</h2>
+                    </div>
+                    <div class="preview-canvas-wrapper">
+                        <canvas id="preview-canvas" width="640" height="360"></canvas>
+                        <!-- 로딩/인디케이터 오버레이 -->
+                        <div id="preview-overlay" class="preview-overlay hide">
+                            <div class="spinner"></div>
+                            <p>미디어 재생 로드 중...</p>
+                        </div>
+                    </div>
+                    <!-- 플레이어 컨트롤러 -->
+                    <div class="player-controls">
+                        <div class="time-display" id="time-display">00:00.00 / 00:00.00</div>
+                        <div class="btn-group">
+                            <button id="btn-player-prev-frame" class="btn-icon" title="이전 프레임 (0.05초 뒤로)"><i class="fa-solid fa-step-backward"></i></button>
+                            <button id="btn-player-play" class="btn-icon btn-play-main" title="재생/일시정지 (Space)"><i class="fa-solid fa-play"></i></button>
+                            <button id="btn-player-stop" class="btn-icon" title="처음으로"><i class="fa-solid fa-stop"></i></button>
+                            <button id="btn-player-next-frame" class="btn-icon" title="다음 프레임 (0.05초 앞으로)"><i class="fa-solid fa-step-forward"></i></button>
+                        </div>
+                        <div class="audio-control">
+                            <i id="btn-preview-mute" class="fa-solid fa-volume-high mute-icon"></i>
+                            <input type="range" id="preview-volume" min="0" max="1" step="0.05" value="0.8">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FFmpeg 스크립트 출력창 -->
+                <div class="ffmpeg-script-container">
+                    <div class="panel-header flex-header">
+                        <h2><i class="fa-solid fa-terminal"></i> 생성된 FFmpeg 렌더링 명령어</h2>
+                        <button id="btn-copy-command" class="btn btn-sm btn-outline"><i class="fa-solid fa-copy"></i> 명령어 복사</button>
+                    </div>
+                    <div class="code-editor-area">
+                        <textarea id="ffmpeg-command-preview" readonly placeholder="타임라인에 클립을 추가하면 로컬 인코딩용 FFMPEG 스크립트가 실시간으로 자동 생성됩니다..."></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 우측 사이드바: 클립 속성 편집기 -->
+            <section class="panel panel-right" id="panel-properties">
+                <div class="panel-header">
+                    <h2><i class="fa-solid fa-sliders"></i> 속성 제어 패널</h2>
+                </div>
+                <div class="panel-body">
+                    <div id="properties-empty-msg" class="properties-empty-msg">
+                        <i class="fa-solid fa-arrow-pointer pointer-icon"></i>
+                        <p>타임라인의 클립을 클릭하여 속성을 수정하세요.</p>
+                    </div>
+
+                    <!-- 클립 속성 제어 폼 (클립 선택 시 활성화) -->
+                    <div id="properties-form" class="properties-form hide">
+                        <h3 id="prop-clip-title" class="clip-type-title">비디오 클립</h3>
+                        <div class="property-group">
+                            <label>소스 파일명</label>
+                            <input type="text" id="prop-file-name" readonly class="input-disabled">
+                        </div>
+
+                        <!-- 윈도우 실제 로컬 파일 경로 입력 (FFmpeg에서 파일 찾기 용도) -->
+                        <div class="property-group highlight-group">
+                            <label>로컬 전체 경로 <span class="help-tip" title="Windows의 실제 파일 전체 경로 또는 파일명을 정확히 입력해 주세요. (FFmpeg 렌더링에 사용됩니다.)"><i class="fa-solid fa-circle-question"></i></span></label>
+                            <input type="text" id="prop-local-path" placeholder="예: D:\Study\WebPage\sVidEditor\source\video.mp4">
+                        </div>
+
+                        <!-- 재생 시간 설정 (트리밍) -->
+                        <div class="property-row">
+                            <div class="property-group">
+                                <label>타임라인 시작 시간 (초)</label>
+                                <input type="number" id="prop-timeline-start" step="0.1" min="0">
+                            </div>
+                            <div class="property-group">
+                                <label>출력 지속 시간 (초)</label>
+                                <input type="number" id="prop-duration" step="0.1" min="0.1">
+                            </div>
+                        </div>
+
+                        <!-- 원본 파일 내 트리밍 구간 (Cut) -->
+                        <div class="property-row inline-split">
+                            <div class="property-group">
+                                <label>원본 컷 시작 (초)</label>
+                                <input type="number" id="prop-source-start" step="0.1" min="0">
+                            </div>
+                            <div class="property-group">
+                                <label>원본 컷 종료 (초)</label>
+                                <input type="number" id="prop-source-end" step="0.1" min="0.1">
+                            </div>
+                        </div>
+
+                        <!-- 비디오 클립 전용 컨트롤 -->
+                        <div id="video-properties-section">
+                            <div class="property-group">
+                                <label>영상 회전 (방향)</label>
+                                <select id="prop-rotation">
+                                    <option value="0">원본 (회전 없음)</option>
+                                    <option value="90">우측으로 90도 회전</option>
+                                    <option value="180">180도 뒤집기</option>
+                                    <option value="270">좌측으로 90도 회전</option>
+                                </select>
+                            </div>
+
+                            <div class="property-group">
+                                <label>오디오 볼륨 조절 (<span id="prop-volume-label">100</span>%)</label>
+                                <input type="range" id="prop-volume" min="0" max="2" step="0.1" value="1">
+                            </div>
+
+                            <!-- PIP / 오버레이 전용 컨트롤 (비디오 트랙 2 에 적용) -->
+                            <div id="pip-properties-section" class="highlight-group hide">
+                                <h4>PIP (Picture-in-Picture) 레이아웃 설정</h4>
+                                <div class="property-row">
+                                    <div class="property-group">
+                                        <label>가로 크기 (px)</label>
+                                        <input type="number" id="prop-pip-width" min="50" max="1280" value="320">
+                                    </div>
+                                    <div class="property-group">
+                                        <label>세로 크기 (px)</label>
+                                        <input type="number" id="prop-pip-height" min="50" max="720" value="180">
+                                    </div>
+                                </div>
+                                <div class="property-row">
+                                    <div class="property-group">
+                                        <label>X 위치 (px)</label>
+                                        <input type="number" id="prop-pip-x" min="0" max="1280" value="20">
+                                    </div>
+                                    <div class="property-group">
+                                        <label>Y 위치 (px)</label>
+                                        <input type="number" id="prop-pip-y" min="0" max="720" value="20">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 오디오 클립 전용 컨트롤 -->
+                        <div id="audio-properties-section" class="hide">
+                            <div class="property-group">
+                                <label>배경음악 볼륨 조절 (<span id="prop-audio-volume-label">100</span>%)</label>
+                                <input type="range" id="prop-audio-volume" min="0" max="2" step="0.1" value="1">
+                            </div>
+                        </div>
+
+                        <!-- 텍스트/자막 및 PNG 이미지 오버레이 전용 컨트롤 -->
+                        <div id="overlay-properties-section" class="hide">
+                            <!-- 텍스트 전용 -->
+                            <div id="text-overlay-section" class="hide">
+                                <div class="property-group">
+                                    <label>자막 텍스트 내용</label>
+                                    <textarea id="prop-text-content" rows="3" placeholder="자막 내용을 입력하세요..."></textarea>
+                                </div>
+                                <div class="property-row">
+                                    <div class="property-group">
+                                        <label>글꼴 크기 (px)</label>
+                                        <input type="number" id="prop-text-size" min="12" max="120" value="36">
+                                    </div>
+                                    <div class="property-group">
+                                        <label>글자 색상</label>
+                                        <input type="color" id="prop-text-color" value="#ffffff">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- PNG 이미지 전용 -->
+                            <div id="image-overlay-section" class="hide">
+                                <div class="property-row">
+                                    <div class="property-group">
+                                        <label>이미지 너비 (px)</label>
+                                        <input type="number" id="prop-img-width" min="10" value="100">
+                                    </div>
+                                    <div class="property-group">
+                                        <label>이미지 높이 (px)</label>
+                                        <input type="number" id="prop-img-height" min="10" value="100">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 공통 오버레이 위치 -->
+                            <h4>오버레이 위치 설정 (1280 x 720 기준)</h4>
+                            <div class="property-row">
+                                <div class="property-group">
+                                    <label>가로(X) 위치 (px)</label>
+                                    <input type="number" id="prop-text-x" min="0" max="1280" value="640">
+                                    <span class="sub-text">X축 (중앙 정렬됨)</span>
+                                </div>
+                                <div class="property-group">
+                                    <label>세로(Y) 위치 (px)</label>
+                                    <input type="number" id="prop-text-y" min="0" max="720" value="600">
+                                    <span class="sub-text">화면 위에서부터의 거리</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 적용 및 삭제 액션 -->
+                        <div class="property-actions">
+                            <button id="btn-apply-properties" class="btn btn-block btn-primary">변경 사항 저장</button>
+                            <button id="btn-delete-clip" class="btn btn-block btn-danger"><i class="fa-solid fa-trash"></i> 클립 삭제</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 하단 영역: 타임라인 편집기 -->
+        <footer class="app-timeline">
+            <!-- 타임라인 컨트롤 툴바 -->
+            <div class="timeline-toolbar">
+                <div class="toolbar-left">
+                    <button id="btn-timeline-split" class="btn btn-sm btn-secondary" title="선택된 비디오/오디오 클립을 재생 헤드 위치에서 분할합니다. (S)">
+                        <i class="fa-solid fa-scissors"></i> 분할하기 (Split)
+                    </button>
+                    <button id="btn-timeline-clear" class="btn btn-sm btn-outline-danger" title="타임라인의 모든 클립을 삭제합니다.">
+                        <i class="fa-solid fa-trash-can"></i> 전체 비우기
+                    </button>
+                </div>
+                <!-- 타임라인 줌 제어 -->
+                <div class="toolbar-right">
+                    <span class="zoom-label"><i class="fa-solid fa-magnifying-glass"></i> 타임라인 줌:</span>
+                    <input type="range" id="timeline-zoom" min="5" max="50" step="1" value="15" title="타임라인 폭 확대/축소">
+                    <span id="zoom-value">15 px/s</span>
+                </div>
+            </div>
+
+            <!-- 타임라인 트랙 및 스크롤 영역 -->
+            <div class="timeline-tracks-container" id="timeline-scroll-container">
+                <!-- 타임라인 지시부 (눈금자) -->
+                <div class="timeline-ruler-wrapper">
+                    <div class="track-label-placeholder">
+                        <span id="timeline-fps-info"><i class="fa-solid fa-film"></i> 1280x720 60fps</span>
+                    </div>
+                    <canvas id="timeline-ruler" class="timeline-ruler"></canvas>
+                </div>
+
+                <div class="tracks-content">
+                    <!-- 타임라인 재생 헤드 -->
+                    <div id="playhead" class="playhead">
+                        <div class="playhead-handle"></div>
+                        <div class="playhead-line"></div>
+                    </div>
+
+                    <!-- 트랙 1: 비디오 트랙 1 (메인결합) -->
+                    <div class="timeline-track-row" data-track-type="video1" id="track-video1">
+                        <div class="track-info">
+                            <span class="track-title"><i class="fa-solid fa-video"></i> Video Track 1</span>
+                            <span class="track-subtitle">메인 영상</span>
+                        </div>
+                        <div class="track-lane dropzone" id="lane-video1">
+                            <!-- 드래그로 삽입된 클립이 그려지는 영역 -->
+                        </div>
+                    </div>
+
+                    <!-- 트랙 2: 비디오 트랙 2 (PIP/오버레이) -->
+                    <div class="timeline-track-row" data-track-type="video2" id="track-video2">
+                        <div class="track-info">
+                            <span class="track-title"><i class="fa-solid fa-images"></i> Video Track 2</span>
+                            <span class="track-subtitle">PIP / 오버레이</span>
+                        </div>
+                        <div class="track-lane dropzone" id="lane-video2">
+                            <!-- PIP 클립용 영역 -->
+                        </div>
+                    </div>
+
+                    <!-- 트랙 3: 오디오 트랙 (배경음악) -->
+                    <div class="timeline-track-row" data-track-type="audio" id="track-audio">
+                        <div class="track-info">
+                            <span class="track-title"><i class="fa-solid fa-music"></i> Audio Track</span>
+                            <span class="track-subtitle">배경 음악</span>
+                        </div>
+                        <div class="track-lane dropzone" id="lane-audio">
+                            <!-- 오디오 클립용 영역 -->
+                        </div>
+                    </div>
+
+                    <!-- 트랙 4: 오버레이 트랙 (텍스트/자막 및 PNG 이미지) -->
+                    <div class="timeline-track-row" data-track-type="overlay" id="track-overlay">
+                        <div class="track-info">
+                            <span class="track-title"><i class="fa-solid fa-closed-captioning"></i> Overlay Track</span>
+                            <span class="track-subtitle">자막 / PNG 스티커</span>
+                        </div>
+                        <div class="track-lane dropzone" id="lane-overlay">
+                            <!-- 자막/PNG가 추가되는 영역 -->
+                            <button id="btn-add-text-clip" class="btn-timeline-add" title="타임라인 현재 위치에 새 자막 클립 추가">
+                                <i class="fa-solid fa-plus-circle"></i> 자막 추가
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 숨김 오디오/비디오 플레이어 elements (HTML5 Canvas 프리뷰 추출 프레임/볼륨 믹싱용) -->
+    <div id="hidden-players-container" style="display: none;"></div>
+
+    <!-- 로직 스크립트 불러오기 -->
+    <script src="ffmpeg-generator.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

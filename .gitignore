@@ -1,0 +1,21 @@
+# sVidEditor - Git Ignore Rules
+
+# FFmpeg 실행 파일 제외 (README 가이드는 남겨둠)
+ffmpeg/*.exe
+ffmpeg/*.zip
+
+# 사용자 소스 미디어 폴더
+source/*
+!source/.gitkeep
+
+# 렌더링된 최종 영상 출력 폴더
+output/*
+!output/.gitkeep
+
+# 로컬에서 생성된 편집 배치파일 및 프로젝트 파라미터 백업 파일
+render.bat
+sVidEditor_project_*.json
+
+# OS 관련 임시 파일
+Thumbs.db
+.DS_Store
