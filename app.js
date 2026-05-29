@@ -856,6 +856,7 @@ function updateTimelineClipsUI() {
 
         // 클립 마우스 선택
         el.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // 브라우저 기본 드래그 및 텍스트 선택 차단 (커스텀 드래그 차단 방지)
             e.stopPropagation();
             selectClip(clip.id);
             
