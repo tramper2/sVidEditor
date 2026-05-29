@@ -279,12 +279,17 @@ function setupEventListeners() {
     });
 
     // 프로젝트 출력 설정 변경 감지
-    DOM.projectResolution.addEventListener('change', handleProjectSettingsChange);
-    DOM.projectFps.addEventListener('change', handleProjectSettingsChange);
+    if (DOM.projectResolution) {
+        DOM.projectResolution.addEventListener('change', handleProjectSettingsChange);
+    }
+    if (DOM.projectFps) {
+        DOM.projectFps.addEventListener('change', handleProjectSettingsChange);
+    }
 }
 
 // 프로젝트 출력 설정(해상도, FPS) 변경 핸들러
 function handleProjectSettingsChange() {
+    if (!DOM.projectResolution || !DOM.projectFps) return;
     const resValue = DOM.projectResolution.value; // 예: "1280x720"
     const parts = resValue.split('x');
     STATE.outputWidth = parseInt(parts[0]) || 1280;
@@ -292,7 +297,9 @@ function handleProjectSettingsChange() {
     STATE.outputFps = parseInt(DOM.projectFps.value) || 60;
 
     // 타임라인 눈금자 FPS 정보 업데이트
-    DOM.timelineFpsInfo.innerHTML = `<i class="fa-solid fa-film"></i> ${resValue} ${STATE.outputFps}fps`;
+    if (DOM.timelineFpsInfo) {
+        DOM.timelineFpsInfo.innerHTML = `<i class="fa-solid fa-film"></i> ${resValue} ${STATE.outputFps}fps`;
+    }
 
     // FFmpeg 명령어 리프레시
     updateFFmpegCommand();
@@ -1550,9 +1557,9 @@ function confirmNewProject() {
         STATE.outputWidth = 1280;
         STATE.outputHeight = 720;
         STATE.outputFps = 60;
-        DOM.projectResolution.value = "1280x720";
-        DOM.projectFps.value = "60";
-        DOM.timelineFpsInfo.innerHTML = `<i class="fa-solid fa-film"></i> 1280x720 60fps`;
+        if (DOM.projectResolution) DOM.projectResolution.value = "1280x720";
+        if (DOM.projectFps) DOM.projectFps.value = "60";
+        if (DOM.timelineFpsInfo) DOM.timelineFpsInfo.innerHTML = `<i class="fa-solid fa-film"></i> 1280x720 60fps`;
         
         selectClip(null);
         updateAssetListUI();
@@ -1618,9 +1625,15 @@ function loadProjectFile(e) {
             STATE.outputFps = data.outputFps || 60;
 
             // UI 설정 제어 드롭다운 동기화
-            DOM.projectResolution.value = `${STATE.outputWidth}x${STATE.outputHeight}`;
-            DOM.projectFps.value = STATE.outputFps;
-            DOM.timelineFpsInfo.innerHTML = `<i class="fa-solid fa-film"></i> ${STATE.outputWidth}x${STATE.outputHeight} ${STATE.outputFps}fps`;
+            if (DOM.projectResolution) {
+                DOM.projectResolution.value = `${STATE.outputWidth}x${STATE.outputHeight}`;
+            }
+            if (DOM.projectFps) {
+                DOM.projectFps.value = STATE.outputFps;
+            }
+            if (DOM.timelineFpsInfo) {
+                DOM.timelineFpsInfo.innerHTML = `<i class="fa-solid fa-film"></i> ${STATE.outputWidth}x${STATE.outputHeight} ${STATE.outputFps}fps`;
+            }
             
             // 에셋 목록은 파일 내용이 로컬 매핑 경로로만 구성되어 있으므로, 
             // 프리뷰를 작동시키기 위해 안내 메세지를 띄웁니다.
