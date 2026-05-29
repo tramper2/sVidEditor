@@ -15,4 +15,6 @@
 - [x] GitHub Pages 배포 자동화 스크립트 작성 (`deploy.sh`, `deploy.bat`)
 - [x] drawRuler 정의부 유실에 따른 타임라인 렌더링 붕괴(Uncaught ReferenceError) 디버깅 및 복구 완료
 - [x] 타임라인 가로 스크롤 시 눈금자(Ruler) 실시간 연동 업데이트 구현
+- [x] 비디오 트랙 1번(Video Track 1) 자석 효과(자동 정렬) 기능 영구 해제 및 자유 시간 배치 제공
+- [x] 타임라인 재생헤드(Playhead)의 다이아몬드 손잡이 마우스 직접 드래그 이동 연동 완료
 - [x] 로컬 렌더링 및 기능 검증 테스트

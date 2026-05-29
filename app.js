@@ -207,6 +207,25 @@ function setupEventListeners() {
         isScrubbing = false;
     });
 
+    // 재생헤드 다이아몬드 핸들 드래그 연동
+    let isDraggingPlayhead = false;
+    const playheadHandle = document.querySelector('.playhead-handle');
+    if (playheadHandle) {
+        playheadHandle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            isDraggingPlayhead = true;
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (isDraggingPlayhead) {
+                scrub(e);
+            }
+        });
+        window.addEventListener('mouseup', () => {
+            isDraggingPlayhead = false;
+        });
+    }
+
     // 속성 패널 컨트롤러 실시간 값 감지 및 자동 저장 반영
     const propInputs = [
         DOM.propLocalPath, DOM.propTimelineStart, DOM.propDuration,
@@ -231,7 +250,7 @@ function setupEventListeners() {
                 if (STATE.selectedClipId) {
                     const clip = STATE.clips.find(c => c.id === STATE.selectedClipId);
                     if (clip && clip.track === 'video1') {
-                        alignVideo1Clips(null);
+                        // alignVideo1Clips(null); // 자석식 정렬 일시적 비활성화 (자유 이동 보장)
                         updateTimelineClipsUI();
                         recalculateTotalDuration();
                         renderPreview();
@@ -806,7 +825,7 @@ function deleteClip(clipId) {
     STATE.clips = STATE.clips.filter(c => c.id !== clipId);
     STATE.selectedClipId = null;
     selectClip(null);
-    alignVideo1Clips(null); // 클립 삭제 후 비디오 1 트랙 빈공간 자동 메우기
+    // alignVideo1Clips(null); // 클립 삭제 후 비디오 1 트랙 빈공간 자동 메우기 비활성화
     updateTimelineClipsUI();
     recalculateTotalDuration();
     renderPreview();
@@ -1211,10 +1230,10 @@ function updateTimelineClipsUI() {
                 window.removeEventListener('mousemove', onMouseMove);
                 window.removeEventListener('mouseup', onMouseUp);
                 
-                // 비디오 1 트랙(메인결합)인 경우 자석식 자동 정렬 수행
-                if (clip.track === 'video1') {
-                    alignVideo1Clips(clip.id);
-                }
+                // 비디오 1 트랙(메인결합)인 경우 자석식 자동 정렬 수행 비활성화
+                // if (clip.track === 'video1') {
+                //     alignVideo1Clips(clip.id);
+                // }
                 
                 // 드래그 완료 후 인풋 값 동기화 및 타임라인 리렌더링, 커맨드 재생성
                 selectClip(clip.id);
