@@ -180,7 +180,7 @@ function setupEventListeners() {
     DOM.btnTimelineSplit.addEventListener('click', splitSelectedClip);
     DOM.btnTimelineClear.addEventListener('click', clearTimeline);
     
-    // 단축키 매핑 (S: 분할, Space: 재생/일시정지)
+    // 단축키 매핑 (S: 분할, Space: 재생/일시정지, Delete: 선택된 클립 삭제)
     window.addEventListener('keydown', (e) => {
         if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
             return; // 텍스트 입력창 조작 중일 때는 단축키 막기
@@ -191,6 +191,11 @@ function setupEventListeners() {
         } else if (e.code === 'KeyS') {
             e.preventDefault();
             splitSelectedClip();
+        } else if (e.code === 'Delete') {
+            e.preventDefault();
+            if (STATE.selectedClipId) {
+                deleteClip(STATE.selectedClipId);
+            }
         }
     });
 
