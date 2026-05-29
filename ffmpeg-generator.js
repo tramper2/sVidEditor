@@ -8,6 +8,11 @@
 function generateFFmpegCommand(projectState) {
     const { clips, assets } = projectState;
     
+    // 사용자가 지정한 출력 해상도 및 FPS 설정 추출 (기본값: 1280x720 60fps)
+    const outW = projectState.outputWidth || 1280;
+    const outH = projectState.outputHeight || 720;
+    const outFPS = projectState.outputFps || 60;
+    
     // 트랙별 클립 분류
     const video1Clips = clips.filter(c => c.track === 'video1').sort((a, b) => a.timelineStart - b.timelineStart);
     const video2Clips = clips.filter(c => c.track === 'video2').sort((a, b) => a.timelineStart - b.timelineStart);
@@ -59,7 +64,7 @@ function generateFFmpegCommand(projectState) {
 
     // --- 필터 복합체 (Filter Complex) 생성 ---
     
-    // 1단계: Video Track 1 클립들을 720p 60fps로 규격화하고 개별 효과 적용
+    // 1단계: Video Track 1 클립들을 지정한 해상도/프레임으로 규격화하고 개별 효과 적용
     video1Mappings.forEach(({ clip, inputIdx }) => {
         let vFilters = [];
         
@@ -72,12 +77,12 @@ function generateFFmpegCommand(projectState) {
             vFilters.push("transpose=2");
         }
         
-        // 2. 스케일 및 레터박스 패딩 (서로 다른 크기의 영상을 1280x720 규격으로 패딩 처리)
+        // 2. 스케일 및 레터박스 패딩 (서로 다른 크기의 영상을 사용자 정의 해상도 규격으로 패딩 처리)
         // 회전 후 해상도가 바뀔 수 있으므로 transpose 후에 스케일을 적용합니다.
-        vFilters.push("scale=w='if(gte(iw/ih,1280/720),1280,-1)':h='if(gte(iw/ih,1280/720),-1,720)'");
-        vFilters.push("pad=1280:720:(1280-iw)/2:(720-ih)/2:black");
+        vFilters.push(`scale=w='if(gte(iw/ih,${outW}/${outH}),${outW},-1)':h='if(gte(iw/ih,${outW}/${outH}),-1,${outH})'`);
+        vFilters.push(`pad=${outW}:${outH}:(${outW}-iw)/2:(${outH}-ih)/2:black`);
         vFilters.push("setsar=1");
-        vFilters.push("fps=60");
+        vFilters.push(`fps=${outFPS}`);
         
         // 3. 비디오 효과 처리
         if (clip.effects && clip.effects.length > 0) {
@@ -90,10 +95,10 @@ function generateFFmpegCommand(projectState) {
                     vFilters.push("reverse");
                 } else if (effect === 'zoom_in') {
                     // 안전한 줌인 효과 (가운데 기준 크롭)
-                    vFilters.push("scale=1.3*iw:1.3*ih", "crop=1280:720");
+                    vFilters.push("scale=1.3*iw:1.3*ih", `crop=${outW}:${outH}`);
                 } else if (effect === 'zoom_out') {
                     // 안전한 줌아웃 효과 (축소 후 패딩)
-                    vFilters.push("scale=0.8*iw:0.8*ih", "pad=1280:720:(1280-iw)/2:(720-ih)/2:black");
+                    vFilters.push("scale=0.8*iw:0.8*ih", `pad=${outW}:${outH}:(${outW}-iw)/2:(${outH}-ih)/2:black`);
                 }
             });
         }
@@ -130,7 +135,7 @@ function generateFFmpegCommand(projectState) {
         
         pipVFilters.push(`scale=${pipW}:${pipH}`);
         pipVFilters.push("setsar=1");
-        pipVFilters.push("fps=60");
+        pipVFilters.push(`fps=${outFPS}`);
         
         if (clip.effects && clip.effects.length > 0) {
             clip.effects.forEach(effect => {
@@ -201,16 +206,21 @@ function generateFFmpegCommand(projectState) {
         const text = clip.text ? clip.text.replace(/'/g, "'\\''").replace(/:/g, "\\:") : "";
         const size = clip.textSize || 36;
         const color = clip.textColor || "#ffffff";
-        const x = clip.x !== undefined ? clip.x : 640;
-        const y = clip.y !== undefined ? clip.y : 600;
+        
+        // 동적 중앙 X좌표 계산 및 Y마진 비율 조절
+        const defaultCenterX = Math.round(outW / 2);
+        const defaultCenterY = Math.round(outH * 0.83); // 720 기준 600은 대략 83% 지점
+        
+        const x = clip.x !== undefined ? clip.x : defaultCenterX;
+        const y = clip.y !== undefined ? clip.y : defaultCenterY;
         const tStart = clip.timelineStart;
         const tEnd = clip.timelineStart + clip.duration;
         
         // drawtext 필터에서 텍스트 정중앙 정렬 처리를 위해 x 식 수정
         // (w-text_w)/2 를 쓰거나 입력받은 특정 X좌표 기준으로 배치
-        // 사용자가 명시적으로 640(정중앙 기본값)을 지정한 경우 화면 가로 중앙 정렬 적용
+        // 사용자가 명시적으로 기존 기본값(640)을 지정했거나, 새로운 해상도의 중앙 좌표(defaultCenterX)인 경우 가로 중앙 정렬 적용
         let xExpr = `${x}`;
-        if (x === 640) {
+        if (x === 640 || x === defaultCenterX) {
             xExpr = `(w-text_w)/2`;
         }
         
@@ -251,7 +261,7 @@ function generateFFmpegCommand(projectState) {
     cmdParts.push(`-filter_complex "${filterString}"`);
     cmdParts.push(`-map "${mappedVideo}"`);
     cmdParts.push(`-map "${mappedAudio}"`);
-    cmdParts.push("-c:v libx264 -pix_fmt yuv420p -r 60 -c:a aac -b:a 192k -ar 44100");
+    cmdParts.push(`-c:v libx264 -pix_fmt yuv420p -r ${outFPS} -c:a aac -b:a 192k -ar 44100`);
     
     const outputFilename = `output\\rendered_${formatDateForFilename(new Date())}.mp4`;
     cmdParts.push(`"${outputFilename}"`);
@@ -300,7 +310,7 @@ echo [INFO] Executing FFMPEG filters and encoding...
 echo.
 
 REM 3. Run FFMPEG
-%FFMPEG_BIN% -y ${inputs.join(" ")} -filter_complex "${filterString.replace(/"/g, '\"')}" -map "${mappedVideo}" -map "${mappedAudio}" -c:v libx264 -pix_fmt yuv420p -r 60 -c:a aac -b:a 192k -ar 44100 "${outputFilename}"
+%FFMPEG_BIN% -y ${inputs.join(" ")} -filter_complex "${filterString.replace(/"/g, '\"')}" -map "${mappedVideo}" -map "${mappedAudio}" -c:v libx264 -pix_fmt yuv420p -r ${outFPS} -c:a aac -b:a 192k -ar 44100 "${outputFilename}"
 
 if %errorlevel% neq 0 goto RENDER_ERROR
 

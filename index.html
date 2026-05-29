@@ -21,6 +21,25 @@
                 <i class="fa-solid fa-wand-magic-sparkles logo-icon"></i>
                 <h1>sVidEditor <span class="badge">v1.0 (Windows)</span></h1>
             </div>
+            <div class="project-settings-group">
+                <div class="setting-field">
+                    <label for="project-resolution"><i class="fa-solid fa-expand"></i> 해상도</label>
+                    <select id="project-resolution" title="최종 동영상의 출력 해상도를 설정합니다.">
+                        <option value="1920x1080">1920 x 1080 (FHD 16:9)</option>
+                        <option value="1280x720" selected>1280 x 720 (HD 16:9)</option>
+                        <option value="1080x1920">1080 x 1920 (세로 9:16)</option>
+                        <option value="640x360">640 x 360 (SD 16:9)</option>
+                    </select>
+                </div>
+                <div class="setting-field">
+                    <label for="project-fps"><i class="fa-solid fa-gauge-high"></i> 프레임</label>
+                    <select id="project-fps" title="최종 동영상의 출력 프레임 레이트를 설정합니다.">
+                        <option value="60" selected>60 fps</option>
+                        <option value="30">30 fps</option>
+                        <option value="24">24 fps</option>
+                    </select>
+                </div>
+            </div>
             <div class="project-actions">
                 <button id="btn-new-project" class="btn btn-secondary" title="새로운 프로젝트로 초기화합니다.">
                     <i class="fa-solid fa-file-circle-plus"></i> 새 프로젝트

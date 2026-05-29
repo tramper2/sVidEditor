@@ -19,7 +19,10 @@ const STATE = {
     previewVolume: 0.8,   // 프리뷰 음량
     isMuted: false,       // 프리뷰 음소거 상태
     lastAnimFrameId: null,// requestAnimationFrame ID
-    lastTimeUpdate: 0     // 재생용 이전 타임스탬프
+    lastTimeUpdate: 0,    // 재생용 이전 타임스탬프
+    outputWidth: 1280,    // 최종 비디오 출력 가로 크기
+    outputHeight: 720,    // 최종 비디오 출력 세로 크기
+    outputFps: 60         // 최종 비디오 출력 프레임 레이트
 };
 
 // --- DOM 요소 캐싱 ---
@@ -95,7 +98,12 @@ const DOM = {
     btnApplyProperties: document.getElementById('btn-apply-properties'),
     btnDeleteClip: document.getElementById('btn-delete-clip'),
     
-    hiddenPlayersContainer: document.getElementById('hidden-players-container')
+    hiddenPlayersContainer: document.getElementById('hidden-players-container'),
+    
+    // 프로젝트 출력 설정 추가
+    projectResolution: document.getElementById('project-resolution'),
+    projectFps: document.getElementById('project-fps'),
+    timelineFpsInfo: document.getElementById('timeline-fps-info')
 };
 
 // Canvas 컨텍스트 및 오버레이 버퍼 캐시
@@ -269,6 +277,25 @@ function setupEventListeners() {
             }
         });
     });
+
+    // 프로젝트 출력 설정 변경 감지
+    DOM.projectResolution.addEventListener('change', handleProjectSettingsChange);
+    DOM.projectFps.addEventListener('change', handleProjectSettingsChange);
+}
+
+// 프로젝트 출력 설정(해상도, FPS) 변경 핸들러
+function handleProjectSettingsChange() {
+    const resValue = DOM.projectResolution.value; // 예: "1280x720"
+    const parts = resValue.split('x');
+    STATE.outputWidth = parseInt(parts[0]) || 1280;
+    STATE.outputHeight = parseInt(parts[1]) || 720;
+    STATE.outputFps = parseInt(DOM.projectFps.value) || 60;
+
+    // 타임라인 눈금자 FPS 정보 업데이트
+    DOM.timelineFpsInfo.innerHTML = `<i class="fa-solid fa-film"></i> ${resValue} ${STATE.outputFps}fps`;
+
+    // FFmpeg 명령어 리프레시
+    updateFFmpegCommand();
 }
 
 // --- 미디어 파일 임포트 로직 ---
@@ -1434,7 +1461,10 @@ function formatHHMMSS(seconds) {
 function updateFFmpegCommand() {
     const result = generateFFmpegCommand({
         clips: STATE.clips,
-        assets: STATE.assets
+        assets: STATE.assets,
+        outputWidth: STATE.outputWidth,
+        outputHeight: STATE.outputHeight,
+        outputFps: STATE.outputFps
     });
     
     if (result.error) {
@@ -1466,6 +1496,13 @@ function confirmNewProject() {
         DOM.hiddenPlayersContainer.innerHTML = '';
         Object.keys(activePlayers).forEach(k => delete activePlayers[k]);
         
+        STATE.outputWidth = 1280;
+        STATE.outputHeight = 720;
+        STATE.outputFps = 60;
+        DOM.projectResolution.value = "1280x720";
+        DOM.projectFps.value = "60";
+        DOM.timelineFpsInfo.innerHTML = `<i class="fa-solid fa-film"></i> 1280x720 60fps`;
+        
         selectClip(null);
         updateAssetListUI();
         updateTimelineClipsUI();
@@ -1490,7 +1527,10 @@ function saveProjectFile() {
         version: "sVidEditor-v1.0",
         assets: cleanAssets,
         clips: STATE.clips,
-        totalDuration: STATE.totalDuration
+        totalDuration: STATE.totalDuration,
+        outputWidth: STATE.outputWidth,
+        outputHeight: STATE.outputHeight,
+        outputFps: STATE.outputFps
     };
 
     const blob = new Blob([JSON.stringify(projectData, null, 4)], { type: 'application/json' });
@@ -1522,6 +1562,14 @@ function loadProjectFile(e) {
             // 프로젝트 복구 시작
             STATE.clips = data.clips;
             STATE.totalDuration = data.totalDuration;
+            STATE.outputWidth = data.outputWidth || 1280;
+            STATE.outputHeight = data.outputHeight || 720;
+            STATE.outputFps = data.outputFps || 60;
+
+            // UI 설정 제어 드롭다운 동기화
+            DOM.projectResolution.value = `${STATE.outputWidth}x${STATE.outputHeight}`;
+            DOM.projectFps.value = STATE.outputFps;
+            DOM.timelineFpsInfo.innerHTML = `<i class="fa-solid fa-film"></i> ${STATE.outputWidth}x${STATE.outputHeight} ${STATE.outputFps}fps`;
             
             // 에셋 목록은 파일 내용이 로컬 매핑 경로로만 구성되어 있으므로, 
             // 프리뷰를 작동시키기 위해 안내 메세지를 띄웁니다.
@@ -1554,7 +1602,10 @@ function loadProjectFile(e) {
 function exportFFmpegBatchScript() {
     const result = generateFFmpegCommand({
         clips: STATE.clips,
-        assets: STATE.assets
+        assets: STATE.assets,
+        outputWidth: STATE.outputWidth,
+        outputHeight: STATE.outputHeight,
+        outputFps: STATE.outputFps
     });
 
     if (result.error) {

@@ -131,6 +131,59 @@ body {
     gap: 10px;
 }
 
+/* Project Settings Group in Header */
+.project-settings-group {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-left: auto;
+    margin-right: 20px;
+    border-right: 1px solid var(--border-color);
+    padding-right: 20px;
+}
+
+.setting-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.setting-field label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.setting-field label i {
+    color: var(--accent);
+}
+
+.setting-field select {
+    background: var(--secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: var(--text-main);
+    font-family: var(--font-main);
+    font-size: 0.8rem;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.setting-field select:hover {
+    border-color: var(--border-color-hover);
+    background: var(--secondary-hover);
+}
+
+.setting-field select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+}
+
 /* Button UI */
 .btn {
     font-family: var(--font-main);
