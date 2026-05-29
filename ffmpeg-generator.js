@@ -260,64 +260,62 @@ function generateFFmpegCommand(projectState) {
 
     // 윈도우 배치 파일 (.bat) 내용 생성
     const batContent = `@echo off
-chcp 65001 > nul
-title sVidEditor - 로컬 렌더러 실행기
+title sVidEditor - Local Renderer
 echo =====================================================================
-echo  sVidEditor 동영상 렌더링 작업을 시작합니다.
+echo  Starting sVidEditor Video Rendering Task...
 echo =====================================================================
 echo.
 
-REM 1. 로컬 환경 ffmpeg 경로 점검
+REM 1. Check FFMPEG path
 set FFMPEG_BIN=ffmpeg.exe
 if exist "ffmpeg\\ffmpeg.exe" goto USE_LOCAL_FFMPEG
 
 where ffmpeg >nul 2>nul
 if %errorlevel% equ 0 goto USE_SYSTEM_FFMPEG
 
-echo [오류] ffmpeg.exe를 찾을 수 없습니다!
-echo D:\\Study\\WebPage\\sVidEditor\\ffmpeg\\ 폴더에 ffmpeg.exe를 넣거나
-echo 시스템 환경 변수에 등록한 후 다시 실행해 주세요.
+echo [ERROR] ffmpeg.exe was not found!
+echo Please place ffmpeg.exe in the 'ffmpeg' folder or add it to system PATH.
+echo See 'ffmpeg\\README.txt' for installation instructions.
 echo.
-echo 안내서를 확인하려면 ffmpeg\\README.txt 파일을 열어보세요.
 pause
 exit /b 1
 
 :USE_LOCAL_FFMPEG
 set FFMPEG_BIN="ffmpeg\\ffmpeg.exe"
-echo [정보] 로컬 하위폴더 'ffmpeg' 내의 FFMPEG 바이너리를 사용합니다.
+echo [INFO] Using local FFMPEG binary from 'ffmpeg' directory.
 goto PATH_CHECK_DONE
 
 :USE_SYSTEM_FFMPEG
 set FFMPEG_BIN=ffmpeg
-echo [정보] 시스템 환경변수(PATH)에 등록된 FFMPEG를 사용합니다.
+echo [INFO] Using system FFMPEG binary from environment PATH.
 goto PATH_CHECK_DONE
 
 :PATH_CHECK_DONE
-REM 2. 출력 디렉터리 검증 및 생성
+REM 2. Verify Output Directory
 if not exist "output" mkdir "output"
-if exist "output" echo [정보] 출력 폴더 'output'을 확인했습니다.
+if exist "output" echo [INFO] Output directory 'output' verified.
 
 echo.
-echo [실행] 인코딩 인풋 설정 및 필터 복합체를 빌드하여 렌더링을 시작합니다...
+echo [INFO] Executing FFMPEG filters and encoding...
 echo.
 
-REM 3. FFmpeg 실행
+REM 3. Run FFMPEG
 %FFMPEG_BIN% -y ${inputs.join(" ")} -filter_complex "${filterString.replace(/"/g, '\"')}" -map "${mappedVideo}" -map "${mappedAudio}" -c:v libx264 -pix_fmt yuv420p -r 60 -c:a aac -b:a 192k -ar 44100 "${outputFilename}"
 
 if %errorlevel% neq 0 goto RENDER_ERROR
 
 echo.
 echo =====================================================================
-echo [성공] 렌더링 완료!
-echo 저장 위치: ${outputFilename}
+echo  [SUCCESS] Rendering completed successfully!
+echo  Output File: ${outputFilename}
 echo =====================================================================
 goto END
 
 :RENDER_ERROR
 echo.
 echo =====================================================================
-echo [오류] 렌더링 도중 문제가 발생했습니다. (에러 코드: %errorlevel%)
-echo 파일 경로가 올바른지, 코덱 오류인지 로그를 확인해 주세요.
+echo  [ERROR] Rendering failed! (Exit Code: %errorlevel%)
+echo  Please verify local file paths or check the console logs above.
 echo =====================================================================
 goto END
 
