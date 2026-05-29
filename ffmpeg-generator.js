@@ -267,55 +267,61 @@ echo  sVidEditor 동영상 렌더링 작업을 시작합니다.
 echo =====================================================================
 echo.
 
-:: 1. 로컬 환경 ffmpeg 경로 점검
+REM 1. 로컬 환경 ffmpeg 경로 점검
 set FFMPEG_BIN=ffmpeg.exe
-if exist "ffmpeg\\ffmpeg.exe" (
-    set FFMPEG_BIN="ffmpeg\\ffmpeg.exe"
-    echo [정보] 로컬 하위폴더 'ffmpeg' 내의 FFMPEG 바이너리를 사용합니다.
-) else (
-    :: 시스템 패스 검증
-    where ffmpeg >nul 2>nul
-    if %errorlevel% equ 0 (
-        set FFMPEG_BIN=ffmpeg
-        echo [정보] 시스템 환경변수(PATH)에 등록된 FFMPEG를 사용합니다.
-    ) else (
-        echo [오류] ffmpeg.exe를 찾을 수 없습니다!
-        echo D:\\Study\\WebPage\\sVidEditor\\ffmpeg\\ 폴더에 ffmpeg.exe를 넣거나
-        echo 시스템 환경 변수에 등록한 후 다시 실행해 주세요.
-        echo.
-        echo 안내서를 확인하려면 ffmpeg\\README.txt 파일을 열어보세요.
-        pause
-        exit /b 1
-    )
-)
+if exist "ffmpeg\\ffmpeg.exe" goto USE_LOCAL_FFMPEG
 
-:: 2. 출력 디렉터리 검증 및 생성
-if not exist "output" (
-    mkdir "output"
-    echo [정보] 출력 폴더 'output'을 생성했습니다.
-)
+where ffmpeg >nul 2>nul
+if %errorlevel% equ 0 goto USE_SYSTEM_FFMPEG
+
+echo [오류] ffmpeg.exe를 찾을 수 없습니다!
+echo D:\\Study\\WebPage\\sVidEditor\\ffmpeg\\ 폴더에 ffmpeg.exe를 넣거나
+echo 시스템 환경 변수에 등록한 후 다시 실행해 주세요.
+echo.
+echo 안내서를 확인하려면 ffmpeg\\README.txt 파일을 열어보세요.
+pause
+exit /b 1
+
+:USE_LOCAL_FFMPEG
+set FFMPEG_BIN="ffmpeg\\ffmpeg.exe"
+echo [정보] 로컬 하위폴더 'ffmpeg' 내의 FFMPEG 바이너리를 사용합니다.
+goto PATH_CHECK_DONE
+
+:USE_SYSTEM_FFMPEG
+set FFMPEG_BIN=ffmpeg
+echo [정보] 시스템 환경변수(PATH)에 등록된 FFMPEG를 사용합니다.
+goto PATH_CHECK_DONE
+
+:PATH_CHECK_DONE
+REM 2. 출력 디렉터리 검증 및 생성
+if not exist "output" mkdir "output"
+if exist "output" echo [정보] 출력 폴더 'output'을 확인했습니다.
 
 echo.
 echo [실행] 인코딩 인풋 설정 및 필터 복합체를 빌드하여 렌더링을 시작합니다...
 echo.
 
-:: 3. FFmpeg 실행
+REM 3. FFmpeg 실행
 %FFMPEG_BIN% -y ${inputs.join(" ")} -filter_complex "${filterString.replace(/"/g, '\"')}" -map "${mappedVideo}" -map "${mappedAudio}" -c:v libx264 -pix_fmt yuv420p -r 60 -c:a aac -b:a 192k -ar 44100 "${outputFilename}"
 
-if %errorlevel% equ 0 (
-    echo.
-    echo =====================================================================
-    echo [성공] 렌더링 완료!
-    echo 저장 위치: ${outputFilename}
-    echo =====================================================================
-) else (
-    echo.
-    echo =====================================================================
-    echo [오류] 렌더링 도중 문제가 발생했습니다. (에러 코드: %errorlevel%)
-    echo 파일 경로가 올바른지, 코덱 오류인지 로그를 확인해 주세요.
-    echo =====================================================================
-)
+if %errorlevel% neq 0 goto RENDER_ERROR
 
+echo.
+echo =====================================================================
+echo [성공] 렌더링 완료!
+echo 저장 위치: ${outputFilename}
+echo =====================================================================
+goto END
+
+:RENDER_ERROR
+echo.
+echo =====================================================================
+echo [오류] 렌더링 도중 문제가 발생했습니다. (에러 코드: %errorlevel%)
+echo 파일 경로가 올바른지, 코덱 오류인지 로그를 확인해 주세요.
+echo =====================================================================
+goto END
+
+:END
 pause
 `;
 
