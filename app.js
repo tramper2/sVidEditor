@@ -154,6 +154,7 @@ function setupEventListeners() {
     DOM.inputMedia.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
             handleMediaImport(e.target.files);
+            e.target.value = ''; // Reset value to allow re-selecting same files
         }
     });
 
