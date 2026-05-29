@@ -20,9 +20,9 @@ const STATE = {
     isMuted: false,       // 프리뷰 음소거 상태
     lastAnimFrameId: null,// requestAnimationFrame ID
     lastTimeUpdate: 0,    // 재생용 이전 타임스탬프
-    outputWidth: 1280,    // 최종 비디오 출력 가로 크기
-    outputHeight: 720,    // 최종 비디오 출력 세로 크기
-    outputFps: 60         // 최종 비디오 출력 프레임 레이트
+    outputWidth: 1920,    // 최종 비디오 출력 가로 크기
+    outputHeight: 1080,   // 최종 비디오 출력 세로 크기
+    outputFps: 30         // 최종 비디오 출력 프레임 레이트
 };
 
 // --- DOM 요소 캐싱 ---
@@ -1672,12 +1672,12 @@ function confirmNewProject() {
         DOM.hiddenPlayersContainer.innerHTML = '';
         Object.keys(activePlayers).forEach(k => delete activePlayers[k]);
         
-        STATE.outputWidth = 1280;
-        STATE.outputHeight = 720;
-        STATE.outputFps = 60;
-        if (DOM.projectResolution) DOM.projectResolution.value = "1280x720";
-        if (DOM.projectFps) DOM.projectFps.value = "60";
-        if (DOM.timelineFpsInfo) DOM.timelineFpsInfo.innerHTML = `<i class="fa-solid fa-film"></i> 1280x720 60fps`;
+        STATE.outputWidth = 1920;
+        STATE.outputHeight = 1080;
+        STATE.outputFps = 30;
+        if (DOM.projectResolution) DOM.projectResolution.value = "1920x1080";
+        if (DOM.projectFps) DOM.projectFps.value = "30";
+        if (DOM.timelineFpsInfo) DOM.timelineFpsInfo.innerHTML = `<i class="fa-solid fa-film"></i> 1920x1080 30fps`;
         
         selectClip(null);
         updateAssetListUI();
