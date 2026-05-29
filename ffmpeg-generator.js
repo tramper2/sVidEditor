@@ -245,8 +245,12 @@ function generateFFmpegCommand(projectState) {
         
         const fontFile = getFFmpegFontPath(clip.textFont, clip.textFontCustom);
         
+        // 브라우저 Canvas의 textBaseline = 'middle' (세로 중앙 정렬)과 일치하도록
+        // FFmpeg의 Y축 좌표(상단 기준)를 '중앙 좌표 - (글꼴크기 / 2)'로 보정합니다.
+        const yExpr = Math.round(scaledY - size / 2);
+        
         // Windows 환경 폰트 설정
-        filterComplex.push(`${currentVideoStream}drawtext=text='${text}':x=${xExpr}:y=${scaledY}:fontsize=${size}:fontcolor=${color}:box=1:boxcolor=black@0.4:fontfile='${fontFile}':enable='between(t,${tStart},${tEnd})'${nextVStream}`);
+        filterComplex.push(`${currentVideoStream}drawtext=text='${text}':x=${xExpr}:y=${yExpr}:fontsize=${size}:fontcolor=${color}:box=1:boxcolor=black@0.4:fontfile='${fontFile}':enable='between(t,${tStart},${tEnd})'${nextVStream}`);
         currentVideoStream = nextVStream;
     });
 
