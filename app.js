@@ -199,13 +199,41 @@ function setupEventListeners() {
         isScrubbing = false;
     });
 
-    // 속성 패널 컨트롤러 실시간 라벨 반사 및 변경 저장
-    DOM.propVolume.addEventListener('input', (e) => {
-        DOM.propVolumeLabel.textContent = Math.round(parseFloat(e.target.value) * 100);
+    // 속성 패널 컨트롤러 실시간 값 감지 및 자동 저장 반영
+    const propInputs = [
+        DOM.propLocalPath, DOM.propTimelineStart, DOM.propDuration,
+        DOM.propSourceStart, DOM.propSourceEnd, DOM.propRotation,
+        DOM.propVolume, DOM.propPipWidth, DOM.propPipHeight,
+        DOM.propPipX, DOM.propPipY, DOM.propAudioVolume,
+        DOM.propTextContent, DOM.propTextSize, DOM.propTextColor,
+        DOM.propImgWidth, DOM.propImgHeight, DOM.propTextX, DOM.propTextY
+    ];
+    propInputs.forEach(input => {
+        if (input) {
+            input.addEventListener('input', updateSelectedClipFromInputs);
+            input.addEventListener('change', updateSelectedClipFromInputs);
+        }
     });
-    DOM.propAudioVolume.addEventListener('input', (e) => {
-        DOM.propAudioVolumeLabel.textContent = Math.round(parseFloat(e.target.value) * 100);
+
+    // 시간 값 입력 포커스 해제 시 메인 트랙 클립 자석 정렬 구동
+    const timeInputs = [DOM.propTimelineStart, DOM.propDuration, DOM.propSourceStart, DOM.propSourceEnd];
+    timeInputs.forEach(input => {
+        if (input) {
+            input.addEventListener('blur', () => {
+                if (STATE.selectedClipId) {
+                    const clip = STATE.clips.find(c => c.id === STATE.selectedClipId);
+                    if (clip && clip.track === 'video1') {
+                        alignVideo1Clips(null);
+                        updateTimelineClipsUI();
+                        recalculateTotalDuration();
+                        renderPreview();
+                        updateFFmpegCommand();
+                    }
+                }
+            });
+        }
     });
+
     DOM.btnApplyProperties.addEventListener('click', applyPropertiesChanges);
     DOM.btnDeleteClip.addEventListener('click', () => {
         if (STATE.selectedClipId) {
@@ -621,6 +649,97 @@ function applyPropertiesChanges() {
     
     // 리바인드
     selectClip(clip.id);
+}
+
+// 속성 입력 실시간 반영
+function updateSelectedClipFromInputs() {
+    if (!STATE.selectedClipId) return;
+    const clip = STATE.clips.find(c => c.id === STATE.selectedClipId);
+    if (!clip) return;
+
+    // 로컬 파일 경로
+    clip.localPath = DOM.propLocalPath.value;
+    
+    // 타임라인 관련 수치
+    const timelineStart = parseFloat(DOM.propTimelineStart.value) || 0;
+    const duration = parseFloat(DOM.propDuration.value) || 0.1;
+    const sourceStart = parseFloat(DOM.propSourceStart.value) || 0;
+    
+    clip.timelineStart = timelineStart;
+    clip.sourceStart = sourceStart;
+    
+    if (clip.assetId) {
+        const asset = STATE.assets.find(a => a.id === clip.assetId);
+        if (asset) {
+            clip.sourceEnd = Math.min(asset.duration, sourceStart + duration);
+            clip.duration = parseFloat((clip.sourceEnd - sourceStart).toFixed(2));
+        } else {
+            clip.duration = duration;
+            clip.sourceEnd = sourceStart + duration;
+        }
+    } else {
+        clip.duration = duration;
+        clip.sourceEnd = sourceStart + duration;
+    }
+
+    // 트랙 고유 속성
+    if (clip.track === 'video1' || clip.track === 'video2') {
+        clip.rotation = parseInt(DOM.propRotation.value);
+        clip.volume = parseFloat(DOM.propVolume.value);
+        DOM.propVolumeLabel.textContent = Math.round(clip.volume * 100);
+        
+        if (clip.track === 'video2') {
+            clip.pip = {
+                width: parseInt(DOM.propPipWidth.value) || 320,
+                height: parseInt(DOM.propPipHeight.value) || 180,
+                x: parseInt(DOM.propPipX.value) || 0,
+                y: parseInt(DOM.propPipY.value) || 0
+            };
+        }
+    } else if (clip.track === 'audio') {
+        clip.volume = parseFloat(DOM.propAudioVolume.value);
+        DOM.propAudioVolumeLabel.textContent = Math.round(clip.volume * 100);
+    } else if (clip.track === 'overlay') {
+        clip.x = parseInt(DOM.propTextX.value) || 0;
+        clip.y = parseInt(DOM.propTextY.value) || 0;
+        
+        if (clip.overlayType === 'text') {
+            clip.text = DOM.propTextContent.value;
+            clip.textSize = parseInt(DOM.propTextSize.value) || 36;
+            clip.textColor = DOM.propTextColor.value;
+            
+            // 타임라인 내 클립 이름 실시간 갱신
+            const clipEl = document.querySelector(`.timeline-clip[data-clip-id="${clip.id}"]`);
+            if (clipEl) {
+                clipEl.querySelector('.clip-name').textContent = clip.text || '자막 텍스트';
+            }
+        } else if (clip.overlayType === 'image') {
+            clip.width = parseInt(DOM.propImgWidth.value) || 150;
+            clip.height = parseInt(DOM.propImgHeight.value) || 150;
+        }
+    }
+
+    // 깜빡임 방지용 실시간 위치/텍스트 전용 업데이트 호출
+    updateTimelineClipsUIOnlyPosition();
+    renderPreview();
+    updateFFmpegCommand();
+}
+
+// 전체 요소를 삭제 후 재생성하지 않고 실시간으로 드래그/타이핑 위치 및 텍스트만 업데이트하여 포커스 유지
+function updateTimelineClipsUIOnlyPosition() {
+    STATE.clips.forEach(clip => {
+        const el = document.querySelector(`.timeline-clip[data-clip-id="${clip.id}"]`);
+        if (el) {
+            const left = clip.timelineStart * STATE.timelineZoom;
+            const width = clip.duration * STATE.timelineZoom;
+            el.style.left = `${left}px`;
+            el.style.width = `${width}px`;
+            el.querySelector('.clip-duration-info').textContent = `${clip.duration.toFixed(1)}s [${clip.sourceStart.toFixed(1)}~${clip.sourceEnd.toFixed(1)}]`;
+            if (clip.overlayType === 'text') {
+                el.querySelector('.clip-name').textContent = clip.text || '자막 텍스트';
+            }
+        }
+    });
 }
 
 // 클립 삭제
