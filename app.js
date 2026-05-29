@@ -628,6 +628,7 @@ function deleteClip(clipId) {
     STATE.clips = STATE.clips.filter(c => c.id !== clipId);
     STATE.selectedClipId = null;
     selectClip(null);
+    alignVideo1Clips(null); // 클립 삭제 후 비디오 1 트랙 빈공간 자동 메우기
     updateTimelineClipsUI();
     recalculateTotalDuration();
     renderPreview();
@@ -729,71 +730,39 @@ function updatePlayheadPosition() {
         const visibleWidth = container.clientWidth - 140;
         
         if (playheadLeft > scrollLeft + visibleWidth - 50) {
-            container.scrollLeft = playheadLeft - 100;
-        } else if (playheadLeft < scrollLeft) {
-            container.scrollLeft = playheadLeft;
-        }
-    }
-}
-
-// 타임라인 눈금자 그리기
-function drawRuler() {
-    const canvas = DOM.timelineRuler;
-    const width = (DOM.timelineScrollContainer.clientWidth - 140) + STATE.totalDuration * STATE.timelineZoom;
-    canvas.width = Math.max(width, DOM.timelineScrollContainer.clientWidth);
-    canvas.height = 28;
-    
-    const rCtx = canvas.getContext('2d');
-    rCtx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    rCtx.fillStyle = '#2c2c35';
-    rCtx.font = '10px monospace';
-    rCtx.strokeStyle = 'rgba(255,255,255,0.15)';
-    rCtx.lineWidth = 1;
-    
-    const zoom = STATE.timelineZoom;
-    const tickInterval = zoom >= 15 ? 1 : 5; // 줌 단계별 라벨 눈금 간격 설정
-    const subTickInterval = zoom >= 30 ? 0.2 : 0.5; // 세부 눈금 간격
-    
-    const endSec = STATE.totalDuration;
-    
-    // 시간 눈금자 표시 루프
-    for (let sec = 0; sec <= endSec; sec += subTickInterval) {
-        const x = sec * zoom;
-        const isMajor = sec % tickInterval === 0;
-        
-        rCtx.beginPath();
-        rCtx.moveTo(x, isMajor ? 12 : 20);
-        rCtx.lineTo(x, 28);
-        rCtx.stroke();
-        
-        if (isMajor) {
-            const timeStr = formatMinutesSeconds(sec);
-            rCtx.fillStyle = '#8e8e93';
-            rCtx.fillText(timeStr, x + 4, 11);
-        }
-    }
-}
-
-function formatMinutesSeconds(seconds) {
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-// 스크러빙(재생헤드 마우스 탐색)
-function scrub(e) {
-    const rect = DOM.timelineRuler.getBoundingClientRect();
-    const x = e.clientX - rect.left + DOM.timelineScrollContainer.scrollLeft;
-    
-    // 라벨 영역(140px) 제외 후 매핑
-    const time = Math.max(0, x / STATE.timelineZoom);
-    STATE.playheadTime = Math.min(STATE.totalDuration, time);
-    
-    updatePlayheadPosition();
+            c    updatePlayheadPosition();
     updateTimeDisplay();
     syncHiddenPlayersTime();
     renderPreview();
+}
+
+// Video Track 1 (메인결합) 클립 자석식 자동 정렬 및 스왑 로직
+function alignVideo1Clips(draggedClipId) {
+    const v1Clips = STATE.clips.filter(c => c.track === 'video1');
+    if (v1Clips.length === 0) return;
+    
+    if (v1Clips.length === 1) {
+        v1Clips[0].timelineStart = 0;
+        return;
+    }
+
+    // 마우스 드래그 가상 위치 기준으로 정렬하되, 타이 브레이커로 드래그된 클립에 우선권 부여
+    v1Clips.sort((a, b) => {
+        if (a.id === draggedClipId) {
+            return a.timelineStart - b.timelineStart - 0.01;
+        }
+        if (b.id === draggedClipId) {
+            return a.timelineStart - b.timelineStart + 0.01;
+        }
+        return a.timelineStart - b.timelineStart;
+    });
+
+    // 정렬 결과에 따라 빈틈 없이 이어 붙임 (자석 타임라인)
+    let currentStart = 0;
+    v1Clips.forEach(c => {
+        c.timelineStart = parseFloat(currentStart.toFixed(2));
+        currentStart += c.duration;
+    });
 }
 
 // 타임라인 클립 DOM 요소 그리기
@@ -874,100 +843,109 @@ function updateTimelineClipsUI() {
             const assetDuration = asset ? asset.duration : 1000; // 가상 한계
 
             const onMouseMove = (moveEvent) => {
-                const diffX = moveEvent.clientX - startX;
-                const diffTime = diffX / STATE.timelineZoom;
+                try {
+                    const diffX = moveEvent.clientX - startX;
+                    const diffTime = diffX / STATE.timelineZoom;
 
-                if (isLeftHandle) {
-                    // 왼쪽 에지 드래그 (시작 위치 변경 및 트리밍 확대/축소)
-                    let newStart = startLeft + diffTime;
-                    let newSrcStart = startSrcStart + diffTime;
-                    
-                    if (newSrcStart < 0) {
-                        newStart = startLeft - startSrcStart;
-                        newSrcStart = 0;
-                    }
-                    if (newStart < 0) {
-                        newStart = 0;
-                        newSrcStart = startSrcStart - startLeft;
-                    }
-                    
-                    const newDur = startLeft + startWidth - newStart;
-                    if (newDur > 0.1) {
+                    if (isLeftHandle) {
+                        // 왼쪽 에지 드래그 (시작 위치 변경 및 트리밍 확대/축소)
+                        let newStart = startLeft + diffTime;
+                        let newSrcStart = startSrcStart + diffTime;
+                        
+                        if (newSrcStart < 0) {
+                            newStart = startLeft - startSrcStart;
+                            newSrcStart = 0;
+                        }
+                        if (newStart < 0) {
+                            newStart = 0;
+                            newSrcStart = startSrcStart - startLeft;
+                        }
+                        
+                        const newDur = startLeft + startWidth - newStart;
+                        if (newDur > 0.1) {
+                            clip.timelineStart = parseFloat(newStart.toFixed(2));
+                            clip.sourceStart = parseFloat(newSrcStart.toFixed(2));
+                            clip.duration = parseFloat(newDur.toFixed(2));
+                        }
+                    } else if (isRightHandle) {
+                        // 오른쪽 에지 드래그 (종료 지점 트리밍)
+                        let newDur = startWidth + diffTime;
+                        let newSrcEnd = startSrcEnd + diffTime;
+                        
+                        if (newSrcEnd > assetDuration) {
+                            newSrcEnd = assetDuration;
+                            newDur = assetDuration - startSrcStart;
+                        }
+                        
+                        if (newDur > 0.1) {
+                            clip.duration = parseFloat(newDur.toFixed(2));
+                            clip.sourceEnd = parseFloat(newSrcEnd.toFixed(2));
+                        }
+                    } else {
+                        // 몸통 드래그 (시작시간 이동 및 트랙 간 세로 이동)
+                        let newStart = startLeft + diffTime;
+                        if (newStart < 0) newStart = 0;
                         clip.timelineStart = parseFloat(newStart.toFixed(2));
-                        clip.sourceStart = parseFloat(newSrcStart.toFixed(2));
-                        clip.duration = parseFloat(newDur.toFixed(2));
-                    }
-                } else if (isRightHandle) {
-                    // 오른쪽 에지 드래그 (종료 지점 트리밍)
-                    let newDur = startWidth + diffTime;
-                    let newSrcEnd = startSrcEnd + diffTime;
-                    
-                    if (newSrcEnd > assetDuration) {
-                        newSrcEnd = assetDuration;
-                        newDur = assetDuration - startSrcStart;
-                    }
-                    
-                    if (newDur > 0.1) {
-                        clip.duration = parseFloat(newDur.toFixed(2));
-                        clip.sourceEnd = parseFloat(newSrcEnd.toFixed(2));
-                    }
-                } else {
-                    // 몸통 드래그 (시작시간 이동 및 트랙 간 세로 이동)
-                    let newStart = startLeft + diffTime;
-                    if (newStart < 0) newStart = 0;
-                    clip.timelineStart = parseFloat(newStart.toFixed(2));
-                    
-                    // 세로 트랙 변경 감지 (마우스 Y 좌표 기준)
-                    const y = moveEvent.clientY;
-                    const lanes = [
-                        { name: 'video1', element: DOM.trackVideo1 },
-                        { name: 'video2', element: DOM.trackVideo2 },
-                        { name: 'audio', element: DOM.trackAudio },
-                        { name: 'overlay', element: DOM.trackOverlay }
-                    ];
-                    
-                    for (const lane of lanes) {
-                        const rect = lane.element.getBoundingClientRect();
-                        if (y >= rect.top && y <= rect.bottom) {
-                            const assetType = asset ? asset.type : (clip.overlayType ? 'overlay' : 'video');
-                            
-                            // 타입 교차 유효성 체크 후 다른 트랙 레인으로 엘리먼트 즉시 이동
-                            if (assetType === 'video' && (lane.name === 'video1' || lane.name === 'video2')) {
-                                if (clip.track !== lane.name) {
-                                    clip.track = lane.name;
-                                    if (lane.name === 'video2' && !clip.pip) {
-                                        clip.pip = { width: 320, height: 180, x: 20, y: 20 };
+                        
+                        // 세로 트랙 변경 감지 (마우스 Y 좌표 기준)
+                        const y = moveEvent.clientY;
+                        const lanes = [
+                            { name: 'video1', element: DOM.trackVideo1 },
+                            { name: 'video2', element: DOM.trackVideo2 },
+                            { name: 'audio', element: DOM.trackAudio },
+                            { name: 'overlay', element: DOM.trackOverlay }
+                        ];
+                        
+                        for (const lane of lanes) {
+                            const rect = lane.element.getBoundingClientRect();
+                            if (y >= rect.top && y <= rect.bottom) {
+                                const assetType = asset ? asset.type : (clip.overlayType ? 'overlay' : 'video');
+                                
+                                // 타입 교차 유효성 체크 후 다른 트랙 레인으로 엘리먼트 즉시 이동
+                                if (assetType === 'video' && (lane.name === 'video1' || lane.name === 'video2')) {
+                                    if (clip.track !== lane.name) {
+                                        clip.track = lane.name;
+                                        if (lane.name === 'video2' && !clip.pip) {
+                                            clip.pip = { width: 320, height: 180, x: 20, y: 20 };
+                                        }
+                                        lane.element.appendChild(el);
                                     }
-                                    lane.element.appendChild(el);
+                                } else if (assetType === 'audio' && lane.name === 'audio') {
+                                    if (clip.track !== lane.name) {
+                                        clip.track = lane.name;
+                                        lane.element.appendChild(el);
+                                    }
+                                } else if ((assetType === 'image' || assetType === 'overlay') && lane.name === 'overlay') {
+                                    if (clip.track !== lane.name) {
+                                        clip.track = lane.name;
+                                        lane.element.appendChild(el);
+                                    }
                                 }
-                            } else if (assetType === 'audio' && lane.name === 'audio') {
-                                if (clip.track !== lane.name) {
-                                    clip.track = lane.name;
-                                    lane.element.appendChild(el);
-                                }
-                            } else if ((assetType === 'image' || assetType === 'overlay') && lane.name === 'overlay') {
-                                if (clip.track !== lane.name) {
-                                    clip.track = lane.name;
-                                    lane.element.appendChild(el);
-                                }
+                                break;
                             }
-                            break;
                         }
                     }
-                }
 
-                // UI 가로 위치 및 텍스트 실시간 반영
-                el.style.left = `${clip.timelineStart * STATE.timelineZoom}px`;
-                el.style.width = `${clip.duration * STATE.timelineZoom}px`;
-                el.querySelector('.clip-duration-info').textContent = `${clip.duration.toFixed(1)}s [${clip.sourceStart.toFixed(1)}~${clip.sourceEnd.toFixed(1)}]`;
-                
-                updateTimeDisplay();
-                renderPreview();
+                    // UI 가로 위치 및 텍스트 실시간 반영
+                    el.style.left = `${clip.timelineStart * STATE.timelineZoom}px`;
+                    el.style.width = `${clip.duration * STATE.timelineZoom}px`;
+                    el.querySelector('.clip-duration-info').textContent = `${clip.duration.toFixed(1)}s [${clip.sourceStart.toFixed(1)}~${clip.sourceEnd.toFixed(1)}]`;
+                    
+                    updateTimeDisplay();
+                    renderPreview();
+                } catch (err) {
+                    console.error("드래그 연산 오류:", err);
+                }
             };
 
             const onMouseUp = () => {
                 window.removeEventListener('mousemove', onMouseMove);
                 window.removeEventListener('mouseup', onMouseUp);
+                
+                // 비디오 1 트랙(메인결합)인 경우 자석식 자동 정렬 수행
+                if (clip.track === 'video1') {
+                    alignVideo1Clips(clip.id);
+                }
                 
                 // 드래그 완료 후 인풋 값 동기화 및 타임라인 리렌더링, 커맨드 재생성
                 selectClip(clip.id);
