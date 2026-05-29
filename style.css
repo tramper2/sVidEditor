@@ -1147,3 +1147,15 @@ input[type="range"]::-webkit-slider-thumb {
         grid-template-columns: 240px 1fr 280px;
     }
 }
+
+/* Hidden Players Container for rendering and audio output */
+.hidden-players {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0.01;
+    overflow: hidden;
+    pointer-events: none;
+    left: -9999px;
+    top: -9999px;
+}

@@ -22,7 +22,8 @@ const STATE = {
     lastTimeUpdate: 0,    // 재생용 이전 타임스탬프
     outputWidth: 1920,    // 최종 비디오 출력 가로 크기
     outputHeight: 1080,   // 최종 비디오 출력 세로 크기
-    outputFps: 30         // 최종 비디오 출력 프레임 레이트
+    outputFps: 30,         // 최종 비디오 출력 프레임 레이트
+    playerLastSeekTimes: {} // 플레이어별 마지막 Seek 타임스탬프 (ms, 싱크 지터 방지)
 };
 
 // --- DOM 요소 캐싱 ---
@@ -1406,8 +1407,22 @@ function drawVideoClip(clip, time, x, y, w, h) {
     const sourcePlayTime = clip.sourceStart + clipElapsed;
     
     // 비디오 엘리먼트 동기 프레임 탐색
-    if (Math.abs(player.currentTime - sourcePlayTime) > 0.15) {
-        player.currentTime = sourcePlayTime;
+    // 재생 중(STATE.isPlaying)일 때는 updateActivePlayersStates()가 싱크 조절을 전담하므로,
+    // drawVideoClip()에서는 재생 중일 때 강제로 currentTime을 셋팅하지 않고(무한 틱 방지),
+    // 일시정지 상태(스크러빙 등)일 때만 정확한 프레임 반영을 위해 0.05초 오차 시 즉각 currentTime을 업데이트합니다.
+    if (!STATE.isPlaying) {
+        if (Math.abs(player.currentTime - sourcePlayTime) > 0.05) {
+            player.currentTime = sourcePlayTime;
+        }
+    } else {
+        // 재생 중일 때라도 비디오 디코더가 너무 크게 밀렸거나 튄 경우(1.0초 초과)에만 보정
+        const diff = Math.abs(player.currentTime - sourcePlayTime);
+        const lastSeekTime = STATE.playerLastSeekTimes[clip.assetId] || 0;
+        const now = performance.now();
+        if (diff > 1.0 && (now - lastSeekTime > 1000)) {
+            player.currentTime = sourcePlayTime;
+            STATE.playerLastSeekTimes[clip.assetId] = now;
+        }
     }
 
     ctx.save();
@@ -1536,6 +1551,7 @@ function playbackLoop() {
 // 타임라인 재생 헤드 시간 기준 비디오/오디오 파일 시작/일시정지 동기화
 function updateActivePlayersStates() {
     const time = STATE.playheadTime;
+    const now = performance.now();
     
     // 음소거 유무 설정
     updateActivePlayersVolumes();
@@ -1551,12 +1567,26 @@ function updateActivePlayersStates() {
             const clipElapsed = time - activeClip.timelineStart;
             const targetSrcTime = activeClip.sourceStart + clipElapsed;
             
-            // 영상 드리프트 보정
+            // 영상 및 음원 재생 싱크 기동
             if (player.paused) {
                 player.currentTime = targetSrcTime;
+                STATE.playerLastSeekTimes[asset.id] = now;
                 player.play().catch(e => console.log("자동재생 실패:", e));
-            } else if (Math.abs(player.currentTime - targetSrcTime) > 0.25) {
-                player.currentTime = targetSrcTime;
+            } else {
+                // 재생 중인 미디어의 미세 드리프트 보정
+                const lastSeekTime = STATE.playerLastSeekTimes[asset.id] || 0;
+                const cooldown = 1000; // 1.0초 쿨다운
+                
+                if (now - lastSeekTime > cooldown) {
+                    // 오디오 에셋인 경우, 미세 드리프트 보정으로 인한 seek 잦음 및 지지직거리는 노이즈를 방지하기 위해 싱크 허용 임계치를 대폭 확장(0.8초)합니다.
+                    // 비디오 에셋은 비교적 엄격한 싱크(0.4초)를 유지합니다.
+                    const threshold = asset.type === 'audio' ? 0.8 : 0.4;
+                    const diff = Math.abs(player.currentTime - targetSrcTime);
+                    if (diff > threshold) {
+                        player.currentTime = targetSrcTime;
+                        STATE.playerLastSeekTimes[asset.id] = now;
+                    }
+                }
             }
         } else {
             if (!player.paused) {
@@ -1597,8 +1627,12 @@ function updateActivePlayersVolumes() {
             // 개별 음량 비율 적용
             const clipVol = activeClip.volume !== undefined ? activeClip.volume : 1.0;
             player.volume = clipVol * STATE.previewVolume;
+            
+            // 숨겨진 비디오/오디오 엘리먼트 자체의 muted를 해제하여 소리가 나도록 합니다.
+            player.muted = false;
         } else {
             player.volume = 0;
+            player.muted = true; // 비활성 상태거나 음소거 시 강제 뮤트
         }
     });
 }
