@@ -13,4 +13,6 @@
 - [x] 브라우저 미지원 비디오/오디오 코덱(AVI, MKV, FLAC 등) 임포트 에러 복구 및 확장자 판별 보완
 - [x] FFmpeg 렌더링 명령어 치환 및 `render.bat` 출력 검증 완료
 - [x] GitHub Pages 배포 자동화 스크립트 작성 (`deploy.sh`, `deploy.bat`)
+- [x] drawRuler 정의부 유실에 따른 타임라인 렌더링 붕괴(Uncaught ReferenceError) 디버깅 및 복구 완료
+- [x] 타임라인 가로 스크롤 시 눈금자(Ruler) 실시간 연동 업데이트 구현
 - [x] 로컬 렌더링 및 기능 검증 테스트
