@@ -911,13 +911,51 @@ function updateTimelineClipsUI() {
                         clip.sourceEnd = parseFloat(newSrcEnd.toFixed(2));
                     }
                 } else {
-                    // 몸통 드래그 (시작시간 이동)
+                    // 몸통 드래그 (시작시간 이동 및 트랙 간 세로 이동)
                     let newStart = startLeft + diffTime;
                     if (newStart < 0) newStart = 0;
                     clip.timelineStart = parseFloat(newStart.toFixed(2));
+                    
+                    // 세로 트랙 변경 감지 (마우스 Y 좌표 기준)
+                    const y = moveEvent.clientY;
+                    const lanes = [
+                        { name: 'video1', element: DOM.trackVideo1 },
+                        { name: 'video2', element: DOM.trackVideo2 },
+                        { name: 'audio', element: DOM.trackAudio },
+                        { name: 'overlay', element: DOM.trackOverlay }
+                    ];
+                    
+                    for (const lane of lanes) {
+                        const rect = lane.element.getBoundingClientRect();
+                        if (y >= rect.top && y <= rect.bottom) {
+                            const assetType = asset ? asset.type : (clip.overlayType ? 'overlay' : 'video');
+                            
+                            // 타입 교차 유효성 체크 후 다른 트랙 레인으로 엘리먼트 즉시 이동
+                            if (assetType === 'video' && (lane.name === 'video1' || lane.name === 'video2')) {
+                                if (clip.track !== lane.name) {
+                                    clip.track = lane.name;
+                                    if (lane.name === 'video2' && !clip.pip) {
+                                        clip.pip = { width: 320, height: 180, x: 20, y: 20 };
+                                    }
+                                    lane.element.appendChild(el);
+                                }
+                            } else if (assetType === 'audio' && lane.name === 'audio') {
+                                if (clip.track !== lane.name) {
+                                    clip.track = lane.name;
+                                    lane.element.appendChild(el);
+                                }
+                            } else if ((assetType === 'image' || assetType === 'overlay') && lane.name === 'overlay') {
+                                if (clip.track !== lane.name) {
+                                    clip.track = lane.name;
+                                    lane.element.appendChild(el);
+                                }
+                            }
+                            break;
+                        }
+                    }
                 }
 
-                // UI 동기화
+                // UI 가로 위치 및 텍스트 실시간 반영
                 el.style.left = `${clip.timelineStart * STATE.timelineZoom}px`;
                 el.style.width = `${clip.duration * STATE.timelineZoom}px`;
                 el.querySelector('.clip-duration-info').textContent = `${clip.duration.toFixed(1)}s [${clip.sourceStart.toFixed(1)}~${clip.sourceEnd.toFixed(1)}]`;
@@ -930,8 +968,12 @@ function updateTimelineClipsUI() {
                 window.removeEventListener('mousemove', onMouseMove);
                 window.removeEventListener('mouseup', onMouseUp);
                 
-                // 정보 정합
-                applyPropertiesChanges();
+                // 드래그 완료 후 인풋 값 동기화 및 타임라인 리렌더링, 커맨드 재생성
+                selectClip(clip.id);
+                updateTimelineClipsUI();
+                recalculateTotalDuration();
+                renderPreview();
+                updateFFmpegCommand();
             };
 
             window.addEventListener('mousemove', onMouseMove);
