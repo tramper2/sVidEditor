@@ -1955,7 +1955,9 @@ function exportFFmpegBatchScript() {
         return;
     }
 
-    const blob = new Blob([result.batContent], { type: 'text/plain;charset=utf-8' });
+    // Windows CMD는 CRLF(\r\n) 줄바꿈이 필요. JS 템플릿 리터럴은 LF(\n)만 생성하므로 변환
+    const crlfContent = result.batContent.replace(/\r?\n/g, '\r\n');
+    const blob = new Blob([crlfContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     
     const a = document.createElement('a');
