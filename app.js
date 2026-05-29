@@ -374,11 +374,11 @@ function handleMediaImport(files) {
 
         const url = URL.createObjectURL(file);
         
-        // 기존에 로드된 프로젝트 에셋(url이 비어있는 상태) 중 이름이 일치하는 것이 있는지 검사
-        let existingAsset = STATE.assets.find(a => a.name === file.name && !a.url);
+        // 기존에 로드된 프로젝트 에셋(url이 비어있는 상태) 중 이름이 일치하는 것이 있는지 검사 (대소문자 구분 없음)
+        let existingAsset = STATE.assets.find(a => a.name.toLowerCase() === file.name.toLowerCase() && !a.url);
         if (!existingAsset) {
             // 프로젝트 로드 상태가 아니더라도 이름이 같은 에셋이 있다면 해당 에셋을 덮어씀
-            existingAsset = STATE.assets.find(a => a.name === file.name);
+            existingAsset = STATE.assets.find(a => a.name.toLowerCase() === file.name.toLowerCase());
         }
 
         // 기존 에셋이 없다면 새 에셋 객체 정의
@@ -489,6 +489,12 @@ function createHiddenPlayer(asset) {
     el.src = asset.url;
     el.preload = 'auto';
     el.dataset.assetId = asset.id;
+    
+    // 비디오 로드 완료 및 탐색(seeked) 시 실시간 프리뷰 자동 갱신 리스너 등록
+    el.addEventListener('seeked', () => { if (!STATE.isPlaying) renderPreview(); });
+    el.addEventListener('loadeddata', () => { renderPreview(); });
+    el.addEventListener('canplay', () => { renderPreview(); });
+    
     DOM.hiddenPlayersContainer.appendChild(el);
     activePlayers[asset.id] = el;
 }
@@ -1514,13 +1520,19 @@ function drawVideoClip(clip, time, x, y, w, h) {
     const clipElapsed = time - clip.timelineStart;
     const sourcePlayTime = clip.sourceStart + clipElapsed;
     
-    // 비디오 엘리먼트 동기 프레임 탐색
+    // 비디오 엘리먼트 동기 프레임 탐색 (ReadyState 검증으로 InvalidStateError 방지)
     // 재생 중(STATE.isPlaying)일 때는 updateActivePlayersStates()가 싱크 조절을 전담하므로,
     // drawVideoClip()에서는 재생 중일 때 강제로 currentTime을 셋팅하지 않고(무한 틱 방지),
     // 일시정지 상태(스크러빙 등)일 때만 정확한 프레임 반영을 위해 0.05초 오차 시 즉각 currentTime을 업데이트합니다.
     if (!STATE.isPlaying) {
-        if (Math.abs(player.currentTime - sourcePlayTime) > 0.05) {
-            player.currentTime = sourcePlayTime;
+        if (player.readyState >= 1) {
+            try {
+                if (Math.abs(player.currentTime - sourcePlayTime) > 0.05) {
+                    player.currentTime = sourcePlayTime;
+                }
+            } catch (e) {
+                console.warn("drawVideoClip currentTime 설정 실패:", e);
+            }
         }
     } else {
         // 재생 중일 때라도 비디오 디코더가 너무 크게 밀렸거나 튄 경우(1.0초 초과)에만 보정
@@ -1528,8 +1540,14 @@ function drawVideoClip(clip, time, x, y, w, h) {
         const lastSeekTime = STATE.playerLastSeekTimes[clip.assetId] || 0;
         const now = performance.now();
         if (diff > 1.0 && (now - lastSeekTime > 1000)) {
-            player.currentTime = sourcePlayTime;
-            STATE.playerLastSeekTimes[clip.assetId] = now;
+            if (player.readyState >= 1) {
+                try {
+                    player.currentTime = sourcePlayTime;
+                    STATE.playerLastSeekTimes[clip.assetId] = now;
+                } catch (e) {
+                    console.warn("drawVideoClip currentTime 설정 실패:", e);
+                }
+            }
         }
     }
 
@@ -1722,7 +1740,13 @@ function updateActivePlayersStates() {
             
             // 영상 및 음원 재생 싱크 기동
             if (player.paused) {
-                player.currentTime = targetSrcTime;
+                if (player.readyState >= 1) {
+                    try {
+                        player.currentTime = targetSrcTime;
+                    } catch (e) {
+                        console.warn("updateActivePlayersStates currentTime 설정 실패:", e);
+                    }
+                }
                 player.playbackRate = 1.0; // 속도 초기화
                 STATE.playerLastSeekTimes[asset.id] = now;
                 player.play().catch(e => console.log("자동재생 실패:", e));
@@ -1735,7 +1759,13 @@ function updateActivePlayersStates() {
                     // 1.5초 이상으로 크게 차이 날 때만 최후의 수단으로 currentTime 강제 덮어쓰기 (1초 쿨다운 적용)
                     const lastSeekTime = STATE.playerLastSeekTimes[asset.id] || 0;
                     if (now - lastSeekTime > 1000) {
-                        player.currentTime = targetSrcTime;
+                        if (player.readyState >= 1) {
+                            try {
+                                player.currentTime = targetSrcTime;
+                            } catch (e) {
+                                console.warn("updateActivePlayersStates currentTime 설정 실패:", e);
+                            }
+                        }
                         player.playbackRate = 1.0;
                         STATE.playerLastSeekTimes[asset.id] = now;
                     }
@@ -1778,7 +1808,13 @@ function syncHiddenPlayersTime() {
         const activeClip = STATE.clips.find(c => c.assetId === asset.id && time >= c.timelineStart && time < c.timelineStart + c.duration);
         if (activeClip) {
             const clipElapsed = time - activeClip.timelineStart;
-            player.currentTime = activeClip.sourceStart + clipElapsed;
+            if (player.readyState >= 1) {
+                try {
+                    player.currentTime = activeClip.sourceStart + clipElapsed;
+                } catch (e) {
+                    console.warn("syncHiddenPlayersTime currentTime 설정 실패:", e);
+                }
+            }
         }
     });
 }
