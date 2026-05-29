@@ -243,8 +243,10 @@ function generateFFmpegCommand(projectState) {
         
         const nextVStream = `[v_text_overlay_${index}]`;
         
-        // Windows 환경 폰트 설정 (arial.ttf 기본 탑재 사용)
-        filterComplex.push(`${currentVideoStream}drawtext=text='${text}':x=${xExpr}:y=${scaledY}:fontsize=${size}:fontcolor=${color}:box=1:boxcolor=black@0.4:fontfile='C\\:/Windows/Fonts/arial.ttf':enable='between(t,${tStart},${tEnd})'${nextVStream}`);
+        const fontFile = getFFmpegFontPath(clip.textFont, clip.textFontCustom);
+        
+        // Windows 환경 폰트 설정
+        filterComplex.push(`${currentVideoStream}drawtext=text='${text}':x=${xExpr}:y=${scaledY}:fontsize=${size}:fontcolor=${color}:box=1:boxcolor=black@0.4:fontfile='${fontFile}':enable='between(t,${tStart},${tEnd})'${nextVStream}`);
         currentVideoStream = nextVStream;
     });
 
@@ -393,4 +395,31 @@ function formatDateForFilename(date) {
     const mm = pad(date.getMinutes(), 2);
     const ss = pad(date.getSeconds(), 2);
     return `${y}${m}${d}_${hh}${mm}${ss}`;
+}
+
+/**
+ * 선택된 글꼴 키에 부합하는 Windows 로컬 FFMPEG 용 폰트 절대경로 반환
+ */
+function getFFmpegFontPath(textFont, textFontCustom) {
+    if (textFont === 'custom' && textFontCustom) {
+        // 사용자가 슬래시 방향을 어떻게 입력하든 FFmpeg 규격에 맞게 변환
+        // 예: C:\Windows\Fonts\NanumGothic.ttf -> C\:/Windows/Fonts/NanumGothic.ttf
+        let path = textFontCustom.replace(/\\/g, '/');
+        if (path.substring(1, 3) === ':/') {
+            path = path.charAt(0) + '\\:' + path.substring(2);
+        }
+        return path;
+    }
+    
+    switch (textFont) {
+        case 'gulim':
+            return 'C\\:/Windows/Fonts/gulim.ttc';
+        case 'batang':
+            return 'C\\:/Windows/Fonts/batang.ttc';
+        case 'arial':
+            return 'C\\:/Windows/Fonts/arial.ttf';
+        case 'malgun':
+        default:
+            return 'C\\:/Windows/Fonts/malgun.ttf'; // 한글 맑은 고딕 기본값
+    }
 }

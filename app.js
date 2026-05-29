@@ -97,6 +97,9 @@ const DOM = {
     propTextContent: document.getElementById('prop-text-content'),
     propTextSize: document.getElementById('prop-text-size'),
     propTextColor: document.getElementById('prop-text-color'),
+    propTextFont: document.getElementById('prop-text-font'),
+    propTextFontCustomGroup: document.getElementById('prop-text-font-custom-group'),
+    propTextFontCustom: document.getElementById('prop-text-font-custom'),
     propImgWidth: document.getElementById('prop-img-width'),
     propImgHeight: document.getElementById('prop-img-height'),
     propTextX: document.getElementById('prop-text-x'),
@@ -247,6 +250,7 @@ function setupEventListeners() {
         DOM.propVolume, DOM.propPipWidth, DOM.propPipHeight,
         DOM.propPipX, DOM.propPipY, DOM.propAudioVolume,
         DOM.propTextContent, DOM.propTextSize, DOM.propTextColor,
+        DOM.propTextFont, DOM.propTextFontCustom,
         DOM.propImgWidth, DOM.propImgHeight, DOM.propTextX, DOM.propTextY
     ];
     propInputs.forEach(input => {
@@ -255,6 +259,18 @@ function setupEventListeners() {
             input.addEventListener('change', updateSelectedClipFromInputs);
         }
     });
+
+    // 폰트 셀렉트 체인지에 따른 직접입력 창 토글
+    if (DOM.propTextFont) {
+        DOM.propTextFont.addEventListener('change', (e) => {
+            if (e.target.value === 'custom') {
+                DOM.propTextFontCustomGroup.classList.remove('hide');
+            } else {
+                DOM.propTextFontCustomGroup.classList.add('hide');
+            }
+            updateSelectedClipFromInputs();
+        });
+    }
 
     // 시간 값 입력 포커스 해제 시 메인 트랙 클립 자석 정렬 구동
     const timeInputs = [DOM.propTimelineStart, DOM.propDuration, DOM.propSourceStart, DOM.propSourceEnd];
@@ -761,6 +777,13 @@ function selectClip(clipId) {
             DOM.propTextContent.value = clip.text;
             DOM.propTextSize.value = clip.textSize;
             DOM.propTextColor.value = clip.textColor;
+            DOM.propTextFont.value = clip.textFont || 'malgun';
+            DOM.propTextFontCustom.value = clip.textFontCustom || '';
+            if (clip.textFont === 'custom') {
+                DOM.propTextFontCustomGroup.classList.remove('hide');
+            } else {
+                DOM.propTextFontCustomGroup.classList.add('hide');
+            }
         } else if (clip.overlayType === 'image') {
             DOM.imageOverlaySection.classList.remove('hide');
             DOM.propImgWidth.value = clip.width;
@@ -832,6 +855,8 @@ function applyPropertiesChanges() {
             clip.text = DOM.propTextContent.value;
             clip.textSize = parseInt(DOM.propTextSize.value);
             clip.textColor = DOM.propTextColor.value;
+            clip.textFont = DOM.propTextFont.value;
+            clip.textFontCustom = DOM.propTextFontCustom.value;
         } else if (clip.overlayType === 'image') {
             clip.width = parseInt(DOM.propImgWidth.value);
             clip.height = parseInt(DOM.propImgHeight.value);
@@ -903,6 +928,8 @@ function updateSelectedClipFromInputs() {
             clip.text = DOM.propTextContent.value;
             clip.textSize = parseInt(DOM.propTextSize.value) || 36;
             clip.textColor = DOM.propTextColor.value;
+            clip.textFont = DOM.propTextFont.value;
+            clip.textFontCustom = DOM.propTextFontCustom.value;
             
             // 타임라인 내 클립 이름 실시간 갱신
             const clipEl = document.querySelector(`.timeline-clip[data-clip-id="${clip.id}"]`);
@@ -1498,7 +1525,8 @@ function renderPreview() {
             }
         } else if (clip.overlayType === 'text') {
             ctx.fillStyle = clip.textColor || '#ffffff';
-            ctx.font = `500 ${Math.round((clip.textSize || 36) / 2)}px ${STATE.fontFamily || 'Outfit'}`;
+            const fontFamily = getCanvasFontFamily(clip.textFont);
+            ctx.font = `500 ${Math.round((clip.textSize || 36) / 2)}px ${fontFamily}`;
             ctx.shadowColor = 'rgba(0,0,0,0.6)';
             ctx.shadowBlur = 4;
             
@@ -2277,4 +2305,22 @@ function onCanvasMouseUp() {
     
     draggedCanvasClip = null;
     updateFFmpegCommand();
+}
+
+/**
+ * 선택된 글꼴 키에 매핑되는 브라우저 Canvas 렌더링용 font-family 문자열 반환
+ */
+function getCanvasFontFamily(fontKey) {
+    switch (fontKey) {
+        case 'malgun':
+            return "'Malgun Gothic', 'Noto Sans KR', sans-serif";
+        case 'gulim':
+            return "'Gulim', 'GulimChe', sans-serif";
+        case 'batang':
+            return "'Batang', 'BatangChe', serif";
+        case 'arial':
+            return "'Arial', sans-serif";
+        default:
+            return "'Malgun Gothic', 'Noto Sans KR', 'Outfit', sans-serif";
+    }
 }
