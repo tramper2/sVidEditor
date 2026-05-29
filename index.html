@@ -39,6 +39,13 @@
                         <option value="24">24 fps</option>
                     </select>
                 </div>
+                <div class="setting-field">
+                    <label for="project-encoder"><i class="fa-solid fa-microchip"></i> 인코더</label>
+                    <select id="project-encoder" title="렌더링에 사용할 인코더를 선택합니다. GPU는 훨씬 빠릅니다.">
+                        <option value="h264_nvenc" selected>GPU (NVIDIA NVENC)</option>
+                        <option value="libx264">CPU (x264 고품질)</option>
+                    </select>
+                </div>
             </div>
             <div class="project-actions">
                 <button id="btn-new-project" class="btn btn-secondary" title="새로운 프로젝트로 초기화합니다.">

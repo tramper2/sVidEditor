@@ -13,6 +13,23 @@ function generateFFmpegCommand(projectState) {
     const outH = projectState.outputHeight || 720;
     const outFPS = projectState.outputFps || 60;
     
+    // 16:9 기준 디자인 영역(1280x720)을 실제 출력 해상도(outW x outH)에 맞추어 맞춤(Fit) 영역 및 오프셋 계산
+    let activeW, activeH, offsetX, offsetY;
+    if (outW / outH >= 16 / 9) {
+        // 출력 영상이 더 넓은 경우 (좌우 검은 여백 - Pillarbox)
+        activeH = outH;
+        activeW = outH * (16 / 9);
+        offsetX = (outW - activeW) / 2;
+        offsetY = 0;
+    } else {
+        // 출력 영상이 더 높은 경우 (상하 검은 여백 - Letterbox, 예: 세로 해상도)
+        activeW = outW;
+        activeH = outW * (9 / 16);
+        offsetX = 0;
+        offsetY = (outH - activeH) / 2;
+    }
+    const scale = activeW / 1280;
+    
     // 트랙별 클립 분류
     const video1Clips = clips.filter(c => c.track === 'video1').sort((a, b) => a.timelineStart - b.timelineStart);
     const video2Clips = clips.filter(c => c.track === 'video2').sort((a, b) => a.timelineStart - b.timelineStart);
@@ -117,9 +134,9 @@ function generateFFmpegCommand(projectState) {
     });
 
     // 2단계: Video Track 1 클립들 순차 합치기 (Concatenation)
-    let concatInV = video1Mappings.map(m => `[v1_${m.inputIdx}]`).join('');
-    let concatInA = video1Mappings.map(m => `[a1_${m.inputIdx}]`).join('');
-    filterComplex.push(`${concatInV}${concatInA}concat=n=${video1Clips.length}:v=1:a=1[v_track1][a_track1]`);
+    // FFmpeg concat 필터는 세그먼트별 v,a 쌍 교차 순서 필요: [v0][a0][v1][a1][v2][a2]...
+    let concatInputs = video1Mappings.map(m => `[v1_${m.inputIdx}][a1_${m.inputIdx}]`).join('');
+    filterComplex.push(`${concatInputs}concat=n=${video1Clips.length}:v=1:a=1[v_track1][a_track1]`);
 
     let currentVideoStream = "[v_track1]";
     let audioStreamsToMix = ["[a_track1]"];
@@ -128,10 +145,10 @@ function generateFFmpegCommand(projectState) {
     video2Mappings.forEach(({ clip, inputIdx }) => {
         // PIP 비디오 스케일링 및 효과
         let pipVFilters = [];
-        const pipW = clip.pip?.width || 320;
-        const pipH = clip.pip?.height || 180;
-        const pipX = clip.pip?.x || 20;
-        const pipY = clip.pip?.y || 20;
+        const pipW = Math.round((clip.pip?.width !== undefined ? clip.pip.width : 320) * scale);
+        const pipH = Math.round((clip.pip?.height !== undefined ? clip.pip.height : 180) * scale);
+        const pipX = Math.round((clip.pip?.x !== undefined ? clip.pip.x : 20) * scale + offsetX);
+        const pipY = Math.round((clip.pip?.y !== undefined ? clip.pip.y : 20) * scale + offsetY);
         
         pipVFilters.push(`scale=${pipW}:${pipH}`);
         pipVFilters.push("setsar=1");
@@ -185,10 +202,10 @@ function generateFFmpegCommand(projectState) {
 
     // 5단계: PNG 이미지 오버레이 합성
     imageMappings.forEach(({ clip, inputIdx }) => {
-        let imgW = clip.width || 150;
-        let imgH = clip.height || 150;
-        let imgX = clip.x || 100;
-        let imgY = clip.y || 100;
+        let imgW = Math.round((clip.width !== undefined ? clip.width : 150) * scale);
+        let imgH = Math.round((clip.height !== undefined ? clip.height : 150) * scale);
+        let imgX = Math.round((clip.x !== undefined ? clip.x : 100) * scale + offsetX);
+        let imgY = Math.round((clip.y !== undefined ? clip.y : 100) * scale + offsetY);
         
         filterComplex.push(`[${inputIdx}:v]scale=${imgW}:${imgH},setsar=1[img_${inputIdx}]`);
         
@@ -204,30 +221,30 @@ function generateFFmpegCommand(projectState) {
     const textClips = overlayClips.filter(c => c.overlayType === 'text');
     textClips.forEach((clip, index) => {
         const text = clip.text ? clip.text.replace(/'/g, "'\\''").replace(/:/g, "\\:") : "";
-        const size = clip.textSize || 36;
+        const size = Math.round((clip.textSize || 36) * scale);
         const color = clip.textColor || "#ffffff";
         
-        // 동적 중앙 X좌표 계산 및 Y마진 비율 조절
-        const defaultCenterX = Math.round(outW / 2);
-        const defaultCenterY = Math.round(outH * 0.83); // 720 기준 600은 대략 83% 지점
+        const xVal = clip.x !== undefined ? clip.x : 640;
+        const yVal = clip.y !== undefined ? clip.y : 600;
         
-        const x = clip.x !== undefined ? clip.x : defaultCenterX;
-        const y = clip.y !== undefined ? clip.y : defaultCenterY;
+        const scaledX = Math.round(xVal * scale + offsetX);
+        const scaledY = Math.round(yVal * scale + offsetY);
+        
         const tStart = clip.timelineStart;
         const tEnd = clip.timelineStart + clip.duration;
         
         // drawtext 필터에서 텍스트 정중앙 정렬 처리를 위해 x 식 수정
         // (w-text_w)/2 를 쓰거나 입력받은 특정 X좌표 기준으로 배치
         // 사용자가 명시적으로 기존 기본값(640)을 지정했거나, 새로운 해상도의 중앙 좌표(defaultCenterX)인 경우 가로 중앙 정렬 적용
-        let xExpr = `${x}`;
-        if (x === 640 || x === defaultCenterX) {
+        let xExpr = `${scaledX}`;
+        if (xVal === 640) {
             xExpr = `(w-text_w)/2`;
         }
         
         const nextVStream = `[v_text_overlay_${index}]`;
         
         // Windows 환경 폰트 설정 (arial.ttf 기본 탑재 사용)
-        filterComplex.push(`${currentVideoStream}drawtext=text='${text}':x=${xExpr}:y=${y}:fontsize=${size}:fontcolor=${color}:box=1:boxcolor=black@0.4:fontfile='C\\:/Windows/Fonts/arial.ttf':enable='between(t,${tStart},${tEnd})'${nextVStream}`);
+        filterComplex.push(`${currentVideoStream}drawtext=text='${text}':x=${xExpr}:y=${scaledY}:fontsize=${size}:fontcolor=${color}:box=1:boxcolor=black@0.4:fontfile='C\\:/Windows/Fonts/arial.ttf':enable='between(t,${tStart},${tEnd})'${nextVStream}`);
         currentVideoStream = nextVStream;
     });
 
@@ -261,7 +278,15 @@ function generateFFmpegCommand(projectState) {
     cmdParts.push(`-filter_complex "${filterString}"`);
     cmdParts.push(`-map "${mappedVideo}"`);
     cmdParts.push(`-map "${mappedAudio}"`);
-    cmdParts.push(`-c:v libx264 -pix_fmt yuv420p -r ${outFPS} -c:a aac -b:a 192k -ar 44100`);
+    // 인코더 선택: GPU(h264_nvenc) 또는 CPU(libx264)
+    const encoder = projectState.encoder || 'libx264';
+    if (encoder === 'h264_nvenc') {
+        // NVIDIA NVENC GPU 인코딩 - p7(최고품질), bitrate 8Mbps
+        cmdParts.push(`-c:v h264_nvenc -preset p7 -rc cbr -b:v 8M -pix_fmt yuv420p -r ${outFPS} -c:a aac -b:a 192k -ar 44100`);
+    } else {
+        // CPU x264 인코딩 - slow 프리셋, CRF 18(고품질)
+        cmdParts.push(`-c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p -r ${outFPS} -c:a aac -b:a 192k -ar 44100`);
+    }
     
     const outputFilename = `output\\rendered_${formatDateForFilename(new Date())}.mp4`;
     cmdParts.push(`"${outputFilename}"`);
@@ -270,6 +295,7 @@ function generateFFmpegCommand(projectState) {
 
     // 윈도우 배치 파일 (.bat) 내용 생성
     const batContent = `@echo off
+chcp 65001 >nul
 title sVidEditor - Local Renderer
 echo =====================================================================
 echo  Starting sVidEditor Video Rendering Task...

@@ -23,6 +23,7 @@ const STATE = {
     outputWidth: 1920,    // 최종 비디오 출력 가로 크기
     outputHeight: 1080,   // 최종 비디오 출력 세로 크기
     outputFps: 30,         // 최종 비디오 출력 프레임 레이트
+    encoder: 'h264_nvenc', // 렌더링 인코더 (h264_nvenc: GPU, libx264: CPU)
     playerLastSeekTimes: {} // 플레이어별 마지막 Seek 타임스탬프 (ms, 싱크 지터 방지)
 };
 
@@ -109,6 +110,7 @@ const DOM = {
     // 프로젝트 출력 설정 추가
     projectResolution: document.getElementById('project-resolution'),
     projectFps: document.getElementById('project-fps'),
+    projectEncoder: document.getElementById('project-encoder'),
     timelineFpsInfo: document.getElementById('timeline-fps-info')
 };
 
@@ -315,6 +317,9 @@ function setupEventListeners() {
     if (DOM.projectFps) {
         DOM.projectFps.addEventListener('change', handleProjectSettingsChange);
     }
+    if (DOM.projectEncoder) {
+        DOM.projectEncoder.addEventListener('change', handleProjectSettingsChange);
+    }
 
     // 타임라인 가로 스크롤 시 눈금자 실시간 리렌더링
     if (DOM.timelineScrollContainer) {
@@ -330,6 +335,7 @@ function handleProjectSettingsChange() {
     STATE.outputWidth = parseInt(parts[0]) || 1280;
     STATE.outputHeight = parseInt(parts[1]) || 720;
     STATE.outputFps = parseInt(DOM.projectFps.value) || 60;
+    if (DOM.projectEncoder) STATE.encoder = DOM.projectEncoder.value;
 
     // 타임라인 눈금자 FPS 정보 업데이트
     if (DOM.timelineFpsInfo) {
@@ -1947,7 +1953,8 @@ function exportFFmpegBatchScript() {
         assets: STATE.assets,
         outputWidth: STATE.outputWidth,
         outputHeight: STATE.outputHeight,
-        outputFps: STATE.outputFps
+        outputFps: STATE.outputFps,
+        encoder: STATE.encoder || 'h264_nvenc'
     });
 
     if (result.error) {
@@ -1956,8 +1963,9 @@ function exportFFmpegBatchScript() {
     }
 
     // Windows CMD는 CRLF(\r\n) 줄바꿈이 필요. JS 템플릿 리터럴은 LF(\n)만 생성하므로 변환
+    // UTF-8 BOM(\uFEFF)을 앞에 붙여 CMD에서 한글 파일명 경로를 올바르게 처리
     const crlfContent = result.batContent.replace(/\r?\n/g, '\r\n');
-    const blob = new Blob([crlfContent], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob(['\uFEFF', crlfContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     
     const a = document.createElement('a');
