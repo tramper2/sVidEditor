@@ -1481,8 +1481,33 @@ function togglePlayback() {
     }
 }
 
+// 모든 오디오/비디오 플레이어 브라우저 자동재생 락 해제 (웜업)
+function unlockAllPlayers() {
+    Object.values(activePlayers).forEach(player => {
+        if (player.dataset.unlocked === 'true') return;
+        
+        const prevMuted = player.muted;
+        const prevVol = player.volume;
+        player.muted = true;
+        player.volume = 0;
+        
+        player.play().then(() => {
+            player.pause();
+            player.muted = prevMuted;
+            player.volume = prevVol;
+            player.dataset.unlocked = 'true';
+        }).catch(e => {
+            // 실패하더라도 인터랙션 웜업 시도가 브라우저에 등록되어 락이 해제될 수 있음
+            player.dataset.unlocked = 'true';
+        });
+    });
+}
+
 function startPlayback() {
     if (STATE.isPlaying) return;
+    
+    // 브라우저 자동재생 보안 제한 해제 (사용자 인터랙션 핸들러 내에서 호출)
+    unlockAllPlayers();
     
     // 오디오 컨텍스트 락 릴리즈 방지용 동시 재생 개시
     STATE.isPlaying = true;
@@ -1570,27 +1595,40 @@ function updateActivePlayersStates() {
             // 영상 및 음원 재생 싱크 기동
             if (player.paused) {
                 player.currentTime = targetSrcTime;
+                player.playbackRate = 1.0; // 속도 초기화
                 STATE.playerLastSeekTimes[asset.id] = now;
                 player.play().catch(e => console.log("자동재생 실패:", e));
             } else {
-                // 재생 중인 미디어의 미세 드리프트 보정
-                const lastSeekTime = STATE.playerLastSeekTimes[asset.id] || 0;
-                const cooldown = 1000; // 1.0초 쿨다운
+                // 재생 속도(playbackRate) 미세 조정을 통한 동기화 (지직거리는 잡음 및 Seek 끊김 방지)
+                const diff = player.currentTime - targetSrcTime; // 양수면 플레이어가 빠름, 음수면 느림
+                const absDiff = Math.abs(diff);
                 
-                if (now - lastSeekTime > cooldown) {
-                    // 오디오 에셋인 경우, 미세 드리프트 보정으로 인한 seek 잦음 및 지지직거리는 노이즈를 방지하기 위해 싱크 허용 임계치를 대폭 확장(0.8초)합니다.
-                    // 비디오 에셋은 비교적 엄격한 싱크(0.4초)를 유지합니다.
-                    const threshold = asset.type === 'audio' ? 0.8 : 0.4;
-                    const diff = Math.abs(player.currentTime - targetSrcTime);
-                    if (diff > threshold) {
+                if (absDiff > 1.5) {
+                    // 1.5초 이상으로 크게 차이 날 때만 최후의 수단으로 currentTime 강제 덮어쓰기 (1초 쿨다운 적용)
+                    const lastSeekTime = STATE.playerLastSeekTimes[asset.id] || 0;
+                    if (now - lastSeekTime > 1000) {
                         player.currentTime = targetSrcTime;
+                        player.playbackRate = 1.0;
                         STATE.playerLastSeekTimes[asset.id] = now;
+                    }
+                } else if (absDiff > 0.08) {
+                    // 0.08초 ~ 1.5초 편차는 재생 속도를 미세 조절하여 끊김이나 지직거림 없이 동기화
+                    if (diff > 0) {
+                        player.playbackRate = 0.96; // 플레이어가 빠르므로 속도를 약간 늦춤 (96% 속도)
+                    } else {
+                        player.playbackRate = 1.04; // 플레이어가 느리므로 속도를 약간 높임 (104% 속도)
+                    }
+                } else {
+                    // 안정 범위 이내면 정상 재생 속도 복구
+                    if (player.playbackRate !== 1.0) {
+                        player.playbackRate = 1.0;
                     }
                 }
             }
         } else {
             if (!player.paused) {
                 player.pause();
+                player.playbackRate = 1.0; // 일시정지 시 속도 초기화
             }
         }
     });
@@ -1599,6 +1637,7 @@ function updateActivePlayersStates() {
 function pauseAllPlayers() {
     Object.values(activePlayers).forEach(player => {
         if (!player.paused) player.pause();
+        player.playbackRate = 1.0; // 속도 초기화
     });
 }
 
