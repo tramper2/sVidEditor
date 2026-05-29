@@ -323,6 +323,9 @@
                     <button id="btn-timeline-split" class="btn btn-sm btn-secondary" title="선택된 비디오/오디오 클립을 재생 헤드 위치에서 분할합니다. (S)">
                         <i class="fa-solid fa-scissors"></i> 분할하기 (Split)
                     </button>
+                    <button id="btn-add-text-clip" class="btn btn-sm btn-primary" title="타임라인 재생헤드 현재 위치에 새 자막(텍스트) 클립을 추가합니다.">
+                        <i class="fa-solid fa-plus-circle"></i> 자막 추가
+                    </button>
                     <button id="btn-timeline-clear" class="btn btn-sm btn-outline-danger" title="타임라인의 모든 클립을 삭제합니다.">
                         <i class="fa-solid fa-trash-can"></i> 전체 비우기
                     </button>
@@ -393,9 +396,6 @@
                         </div>
                         <div class="track-lane dropzone" id="lane-overlay">
                             <!-- 자막/PNG가 추가되는 영역 -->
-                            <button id="btn-add-text-clip" class="btn-timeline-add" title="타임라인 현재 위치에 새 자막 클립 추가">
-                                <i class="fa-solid fa-plus-circle"></i> 자막 추가
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -407,7 +407,7 @@
     <div id="hidden-players-container" style="display: none;"></div>
 
     <!-- 로직 스크립트 불러오기 -->
-    <script src="ffmpeg-generator.js?v=1.0.5"></script>
-    <script src="app.js?v=1.0.5"></script>
+    <script src="ffmpeg-generator.js?v=1.0.6"></script>
+    <script src="app.js?v=1.0.6"></script>
 </body>
 </html>

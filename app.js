@@ -1059,9 +1059,7 @@ function updateTimelineClipsUI() {
     DOM.trackVideo1.querySelectorAll('.timeline-clip').forEach(el => el.remove());
     DOM.trackVideo2.querySelectorAll('.timeline-clip').forEach(el => el.remove());
     DOM.trackAudio.querySelectorAll('.timeline-clip').forEach(el => el.remove());
-    DOM.trackOverlay.querySelectorAll('.timeline-clip').forEach(el => {
-        if (!el.classList.contains('btn-timeline-add')) el.remove();
-    });
+    DOM.trackOverlay.querySelectorAll('.timeline-clip').forEach(el => el.remove());
 
     STATE.clips.forEach(clip => {
         let lane;
