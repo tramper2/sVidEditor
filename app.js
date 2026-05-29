@@ -381,9 +381,13 @@ function handleMediaImport(files) {
             existingAsset = STATE.assets.find(a => a.name.toLowerCase() === file.name.toLowerCase());
         }
 
+        console.log("[sVidEditor Debug] Importing file:", file.name, "size:", file.size);
+        console.log("[sVidEditor Debug] Current assets in state:", STATE.assets.map(a => ({ id: a.id, name: a.name, hasUrl: !!a.url })));
+
         // 기존 에셋이 없다면 새 에셋 객체 정의
         let asset = existingAsset;
         if (!existingAsset) {
+            console.log("[sVidEditor Debug] Match not found. Creating new asset.");
             const id = 'asset_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
             const localPath = `D:\\Study\\WebPage\\sVidEditor\\source\\${file.name}`;
             asset = {
@@ -396,6 +400,7 @@ function handleMediaImport(files) {
                 duration: 0
             };
         } else {
+            console.log("[sVidEditor Debug] Matched existing asset:", existingAsset.id, existingAsset.name);
             // 기존 에셋 정보 업데이트
             existingAsset.url = url;
             existingAsset.file = file;
@@ -472,10 +477,13 @@ function createHiddenPlayer(asset) {
     
     // 이미 해당 에셋 ID를 가진 플레이어가 활성화되어 있다면 src 주소만 갱신
     if (activePlayers[asset.id]) {
+        console.log("[sVidEditor Debug] Reusing player for asset:", asset.id, asset.name, "new url:", asset.url);
         activePlayers[asset.id].src = asset.url;
         activePlayers[asset.id].dataset.unlocked = 'false'; // 새로운 주소이므로 잠금 해제 플래그 리셋
         return;
     }
+    
+    console.log("[sVidEditor Debug] Creating new video/audio player element for asset:", asset.id, asset.name, "url:", asset.url);
     
     let el;
     if (asset.type === 'video') {
@@ -1437,6 +1445,13 @@ function renderPreview() {
         if (clip.overlayType === 'image') {
             const asset = STATE.assets.find(a => a.id === clip.assetId);
             if (asset) {
+                if (!asset.url) {
+                    if (!renderPreview._lastImageWarn || Date.now() - renderPreview._lastImageWarn > 3000) {
+                        console.warn("[sVidEditor Debug] Image asset has no URL (not re-imported yet?):", asset.name);
+                        renderPreview._lastImageWarn = Date.now();
+                    }
+                    return;
+                }
                 // 프리뷰 해상도 반비례 리사이즈
                 const imgX = clip.x / 2;
                 const imgY = clip.y / 2;
@@ -1484,7 +1499,13 @@ function renderPreview() {
 // 개별 비디오 그리기 + 필터 + 변환 엔진
 function drawVideoClip(clip, time, x, y, w, h) {
     const player = activePlayers[clip.assetId];
-    if (!player) return;
+    if (!player) {
+        if (!drawVideoClip._lastLogTime || Date.now() - drawVideoClip._lastLogTime > 3000) {
+            console.warn("[sVidEditor Debug] drawVideoClip - No player found for clip.assetId:", clip.assetId, "clip name:", clip.name);
+            drawVideoClip._lastLogTime = Date.now();
+        }
+        return;
+    }
 
     const asset = STATE.assets.find(a => a.id === clip.assetId);
     if (asset && asset.isPreviewDisabled) {
