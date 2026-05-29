@@ -285,6 +285,11 @@ function setupEventListeners() {
     if (DOM.projectFps) {
         DOM.projectFps.addEventListener('change', handleProjectSettingsChange);
     }
+
+    // 타임라인 가로 스크롤 시 눈금자 실시간 리렌더링
+    if (DOM.timelineScrollContainer) {
+        DOM.timelineScrollContainer.addEventListener('scroll', drawRuler);
+    }
 }
 
 // 프로젝트 출력 설정(해상도, FPS) 변경 핸들러
@@ -889,6 +894,75 @@ function updateTimelineZoom() {
     drawRuler();
     updateTimelineClipsUI();
     updatePlayheadPosition();
+}
+
+// 타임라인 상단 캔버스 눈금자 그리기 함수
+function drawRuler() {
+    const canvas = DOM.timelineRuler;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    
+    // 해상도 조절 (레티나/고해상도 대응 및 크기 갱신)
+    canvas.width = width;
+    canvas.height = height;
+    
+    ctx.clearRect(0, 0, width, height);
+    
+    // 어두운 배경색 칠하기
+    ctx.fillStyle = '#16161a';
+    ctx.fillRect(0, 0, width, height);
+    
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#8e8e93';
+    ctx.font = '9px Outfit, sans-serif';
+    
+    const zoom = STATE.timelineZoom;
+    const container = DOM.timelineScrollContainer;
+    // 왼쪽 헤더 너비(140px)를 감안한 스크롤 오프셋 계산
+    const scrollLeft = container ? container.scrollLeft : 0;
+    
+    // 눈금 영역은 140px 헤더 이후부터 그려짐
+    // 가시 영역 계산
+    const startSec = Math.floor(scrollLeft / zoom);
+    const endSec = Math.ceil((scrollLeft + width - 140) / zoom);
+    
+    // 눈금자가 시작되는 140px 영역을 클리핑하거나 오프셋 반영하여 렌더링
+    ctx.save();
+    
+    // 눈금 선들을 루프로 렌더링
+    for (let sec = startSec; sec <= endSec; sec++) {
+        // 실제 화면상에서의 X 좌표 계산 (헤더 140px 오프셋 반영)
+        const x = 140 + (sec * zoom) - scrollLeft;
+        
+        if (x < 140) continue; // 헤더 영역 침범 방지
+        
+        // 1초 단위 주 눈금
+        ctx.beginPath();
+        ctx.moveTo(x, height);
+        ctx.lineTo(x, height - 12);
+        ctx.stroke();
+        
+        // 2초 단위 텍스트 라벨 표시
+        if (sec % 2 === 0) {
+            ctx.fillText(sec + 's', x + 4, height - 4);
+        }
+        
+        // 0.1초 단위 보조 눈금
+        for (let sub = 1; sub < 10; sub++) {
+            const sx = x + (sub * zoom) / 10;
+            if (sx >= 140 && sx <= width) {
+                ctx.beginPath();
+                ctx.moveTo(sx, height);
+                ctx.lineTo(sx, height - 6);
+                ctx.stroke();
+            }
+        }
+    }
+    
+    ctx.restore();
 }
 
 function updatePlayheadPosition() {
