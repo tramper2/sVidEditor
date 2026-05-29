@@ -1,5 +1,7 @@
 # sVidEditor - 로컬 렌더링 기반 웹 비디오 에디터
 
+🔗 **배포된 웹 에디터 바로가기**: [https://tramper2.github.io/sVidEditor/](https://tramper2.github.io/sVidEditor/)
+
 sVidEditor는 웹 브라우저에서 편리하게 비디오/오디오/이미지를 타임라인 형태로 배치하고 효과(회전, 필터, 줌, PIP, 자막 등)를 편집한 후, 실제 인코딩 및 렌더링은 로컬 컴퓨터의 **FFmpeg**를 이용하여 처리하는 하이브리드 비디오 편집기입니다.
 
 브라우저 보안 제약으로 웹에서 직접 대용량 원본을 다루기 힘든 문제를 극복하고, 프리뷰는 브라우저 내부에서 HTML5 Canvas/Audio로 실행하되, 실제 결과물은 PC의 그래픽카드/CPU와 FFmpeg를 이용해 빠르고 안정적으로 렌더링합니다.
@@ -37,7 +39,7 @@ sVidEditor/
 ## ⚡ 빠른 시작 가이드
 
 ### 1. 웹 에디터 실행
-1. 웹 브라우저(Chrome, Edge 등)로 `index.html` 파일을 더블 클릭하여 실행합니다. (CORS 에러를 피하기 위해 표준 스크립트로 동작하므로 로컬 웹서버가 필요 없습니다.)
+1. 배포 페이지 [https://tramper2.github.io/sVidEditor/](https://tramper2.github.io/sVidEditor/) 또는 로컬의 `index.html` 파일을 열어 에디터를 실행합니다.
 2. 좌측 드롭존을 통해 편집할 영상/음원을 가져와 타임라인(Track 1~4)에 적절히 드래그 배치합니다.
 3. 영상 클립을 클릭하고 우측 속성 제어판에서 **'로컬 전체 경로'**가 내 컴퓨터 내 실제 절대 경로(예: `D:\Study\WebPage\sVidEditor\source\video1.mp4`)로 지정되었는지 확인합니다.
 4. 자막 입력, 비디오 회전(Transpose), 필터 드래그(흑백, 세피아), 줌, PIP 배치 등을 수행합니다.
@@ -56,6 +58,7 @@ sVidEditor/
 
 *   **Windows 환경**: 최상위 폴더에 위치한 **`deploy.bat`** 파일을 더블 클릭하면 자동으로 변경 코드가 커밋되고 `gh-pages` 브랜치로 배포가 완료됩니다.
 *   **Bash 환경**: 터미널에서 `./deploy.sh` 스크립트를 기동합니다.
+*   **실시간 사이트 확인**: 배포 성공 후 몇 분 뒤 [https://tramper2.github.io/sVidEditor/](https://tramper2.github.io/sVidEditor/) 주소에서 실시간 에디터를 확인할 수 있습니다.
 
 ---
 
