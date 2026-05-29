@@ -349,6 +349,13 @@ function handleProjectSettingsChange() {
 
 // --- 미디어 파일 임포트 로직 ---
 function handleMediaImport(files) {
+    // 미디어 파일 재연결 안내 모달이 열려 있으면 닫기
+    const reconnectModal = document.getElementById('media-reconnect-modal');
+    if (reconnectModal) {
+        reconnectModal.classList.remove('show');
+        setTimeout(() => reconnectModal.remove(), 300);
+    }
+
     DOM.previewOverlay.classList.remove('hide');
     let loadedCount = 0;
     
@@ -2029,7 +2036,16 @@ function loadProjectFile(e) {
             renderPreview();
             updateFFmpegCommand();
 
-            alert("프로젝트 설정을 정상 로드했습니다.\n\n※ 주의: 브라우저 보안 제약으로 미디어 파일의 프리뷰(미리보기) 재생을 원하시면, 미디어 라이브러리 상단의 '파일 선택' 버튼을 눌러 프로젝트에서 사용된 로컬 원본 비디오 파일들을 다시 한 번 선택(재임포트)해 주셔야 합니다. (로컬 FFmpeg 경로 파라미터는 그대로 보존됩니다.)");
+            // 자동으로 미디어 파일 선택창 열기 시도 (비동기 스레드이므로 브라우저 보안 정책에 따라 차단될 수 있음)
+            console.log("[sVidEditor] 프로젝트 로드 완료. 미디어 파일 재선택 창을 자동으로 엽니다.");
+            try {
+                DOM.inputMedia.click();
+            } catch (err) {
+                console.warn("[sVidEditor] 자동 파일 선택창 열기 실패 (사용자 동작 필요):", err);
+            }
+
+            // 브라우저 정책으로 인해 자동 실행이 차단될 것을 대비하여, 클릭 시 100% 열리는 안내 모달 노출
+            showMediaReconnectModal();
             
         } catch (err) {
             console.error("JSON 파싱 에러:", err);
@@ -2037,6 +2053,67 @@ function loadProjectFile(e) {
         }
     };
     reader.readAsText(file);
+}
+
+// 프로젝트 로드 후 미디어 재연결 안내 모달 띄우기
+function showMediaReconnectModal() {
+    // 기존 모달이 존재하면 제거
+    const existing = document.getElementById('media-reconnect-modal');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'media-reconnect-modal';
+    overlay.className = 'modal-overlay';
+    
+    overlay.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <h3>프로젝트 불러오기 완료</h3>
+            </div>
+            <div class="modal-body">
+                <p>프로젝트 설정을 성공적으로 불러왔습니다!</p>
+                <p>브라우저의 보안 제한으로 인해 비디오 및 오디오 미리보기를 활성화하려면, <strong>프로젝트에 사용된 미디어 파일들을 다시 한 번 선택</strong>해 주셔야 합니다.</p>
+                <div class="warning-note">
+                    <i class="fa-solid fa-circle-info"></i> 로컬 FFmpeg 렌더링 경로와 편집했던 타임라인 클립 정보는 그대로 유지됩니다.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="modal-btn-cancel" class="btn btn-secondary">나중에</button>
+                <button id="modal-btn-select" class="btn btn-primary"><i class="fa-solid fa-file-video"></i> 미디어 파일 선택</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // CSS 트랜지션을 작동시키기 위해 브라우저 렌더 큐 비우기
+    requestAnimationFrame(() => {
+        overlay.classList.add('show');
+    });
+
+    const selectBtn = overlay.querySelector('#modal-btn-select');
+    const cancelBtn = overlay.querySelector('#modal-btn-cancel');
+
+    selectBtn.addEventListener('click', () => {
+        overlay.classList.remove('show');
+        setTimeout(() => overlay.remove(), 300);
+        // 사용자 클릭 핸들러 내부이므로 브라우저 보안 제약을 우회하여 100% 파일 창 열림
+        DOM.inputMedia.click();
+    });
+
+    cancelBtn.addEventListener('click', () => {
+        overlay.classList.remove('show');
+        setTimeout(() => overlay.remove(), 300);
+    });
+
+    // 배경 클릭 시 닫기
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.classList.remove('show');
+            setTimeout(() => overlay.remove(), 300);
+        }
+    });
 }
 
 // FFmpeg Windows 배치파일 내보내기 (.bat)

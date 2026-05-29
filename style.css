@@ -1192,3 +1192,101 @@ input[type="range"]::-webkit-slider-thumb {
 .prop-effect-badge .remove-effect-btn:hover {
     color: #ff1744;
 }
+
+/* ========================================================================
+   Custom Modal / Popup Dialog Styles
+   ======================================================================== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    opacity: 0;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+}
+
+.modal-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-content {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color-hover);
+    border-radius: 12px;
+    width: 480px;
+    max-width: 90%;
+    padding: 24px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    transform: translateY(-20px);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.modal-overlay.show .modal-content {
+    transform: translateY(0);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 12px;
+}
+
+.modal-header i {
+    font-size: 1.4rem;
+    color: var(--accent);
+    filter: drop-shadow(0 0 5px var(--accent-glow));
+}
+
+.modal-header h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.modal-body {
+    font-size: 0.85rem;
+    color: var(--text-main);
+    line-height: 1.6;
+}
+
+.modal-body p {
+    margin-bottom: 12px;
+}
+
+.modal-body .warning-note {
+    background: rgba(255, 145, 0, 0.08);
+    border-left: 3px solid var(--warning);
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    color: var(--warning);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.modal-body .warning-note i {
+    margin-top: 2px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 8px;
+}
+
