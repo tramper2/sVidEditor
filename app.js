@@ -88,6 +88,9 @@ const DOM = {
     propRotation: document.getElementById('prop-rotation'),
     propVolume: document.getElementById('prop-volume'),
     propVolumeLabel: document.getElementById('prop-volume-label'),
+    propSpeed: document.getElementById('prop-speed'),
+    propSpeedLabel: document.getElementById('prop-speed-label'),
+    speedPresets: document.querySelectorAll('.btn-preset'),
     propPipWidth: document.getElementById('prop-pip-width'),
     propPipHeight: document.getElementById('prop-pip-height'),
     propPipX: document.getElementById('prop-pip-x'),
@@ -247,7 +250,7 @@ function setupEventListeners() {
     const propInputs = [
         DOM.propLocalPath, DOM.propTimelineStart, DOM.propDuration,
         DOM.propSourceStart, DOM.propSourceEnd, DOM.propRotation,
-        DOM.propVolume, DOM.propPipWidth, DOM.propPipHeight,
+        DOM.propVolume, DOM.propSpeed, DOM.propPipWidth, DOM.propPipHeight,
         DOM.propPipX, DOM.propPipY, DOM.propAudioVolume,
         DOM.propTextContent, DOM.propTextSize, DOM.propTextColor,
         DOM.propTextFont, DOM.propTextFontCustom,
@@ -259,6 +262,20 @@ function setupEventListeners() {
             input.addEventListener('change', updateSelectedClipFromInputs);
         }
     });
+
+    // 배속 프리셋 버튼 이벤트 바인딩
+    if (DOM.speedPresets) {
+        DOM.speedPresets.forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (DOM.propSpeed) {
+                    DOM.propSpeed.value = btn.dataset.speed;
+                    // input 및 change 이벤트 강제 기동하여 값 갱신 연동
+                    DOM.propSpeed.dispatchEvent(new Event('input', { bubbles: true }));
+                    DOM.propSpeed.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+        });
+    }
 
     // 폰트 셀렉트 체인지에 따른 직접입력 창 토글
     if (DOM.propTextFont) {
@@ -624,6 +641,7 @@ function addAssetToTimeline(assetId, track, timelineStart) {
         sourceEnd: parseFloat(asset.duration.toFixed(2)),
         volume: 1.0,
         rotation: 0,
+        speed: 1.0,
         effects: []
     };
 
@@ -727,6 +745,8 @@ function selectClip(clipId) {
         DOM.propRotation.value = clip.rotation;
         DOM.propVolume.value = clip.volume;
         DOM.propVolumeLabel.textContent = Math.round(clip.volume * 100);
+        DOM.propSpeed.value = clip.speed || 1.0;
+        DOM.propSpeedLabel.textContent = (clip.speed || 1.0).toFixed(1);
         
         // 적용된 비디오 효과 배지 렌더링
         DOM.propVideoEffectsList.innerHTML = '';
@@ -809,6 +829,10 @@ function applyPropertiesChanges() {
     // 로컬 파일명 수집
     clip.localPath = DOM.propLocalPath.value;
     
+    // 배속 처리
+    const speed = DOM.propSpeed ? (parseFloat(DOM.propSpeed.value) || 1.0) : 1.0;
+    clip.speed = speed;
+    
     // 수치 형변환
     const timelineStart = parseFloat(DOM.propTimelineStart.value) || 0;
     const duration = parseFloat(DOM.propDuration.value) || 0.1;
@@ -817,20 +841,17 @@ function applyPropertiesChanges() {
     // 소스 한계치 점검
     if (clip.assetId) {
         const asset = STATE.assets.find(a => a.id === clip.assetId);
-        if (asset) {
-            clip.sourceEnd = Math.min(asset.duration, sourceStart + duration);
-            clip.duration = parseFloat((clip.sourceEnd - sourceStart).toFixed(2));
-        } else {
-            clip.duration = duration;
-            clip.sourceEnd = sourceStart + duration;
-        }
+        const assetDuration = asset ? asset.duration : 1000.0;
+        clip.sourceStart = sourceStart;
+        clip.sourceEnd = Math.min(assetDuration, sourceStart + duration * speed);
+        clip.duration = parseFloat(((clip.sourceEnd - clip.sourceStart) / speed).toFixed(2));
     } else {
         clip.duration = duration;
-        clip.sourceEnd = sourceStart + duration;
+        clip.sourceStart = sourceStart;
+        clip.sourceEnd = sourceStart + duration * speed;
     }
 
     clip.timelineStart = timelineStart;
-    clip.sourceStart = sourceStart;
 
     // 트랙 고유 속성 저장
     if (clip.track === 'video1' || clip.track === 'video2') {
@@ -873,7 +894,7 @@ function applyPropertiesChanges() {
 }
 
 // 속성 입력 실시간 반영
-function updateSelectedClipFromInputs() {
+function updateSelectedClipFromInputs(e) {
     if (!STATE.selectedClipId) return;
     const clip = STATE.clips.find(c => c.id === STATE.selectedClipId);
     if (!clip) return;
@@ -881,26 +902,57 @@ function updateSelectedClipFromInputs() {
     // 로컬 파일 경로
     clip.localPath = DOM.propLocalPath.value;
     
+    // 배속 처리
+    const speed = DOM.propSpeed ? (parseFloat(DOM.propSpeed.value) || 1.0) : 1.0;
+    clip.speed = speed;
+    if (DOM.propSpeedLabel) {
+        DOM.propSpeedLabel.textContent = speed.toFixed(1);
+    }
+    
     // 타임라인 관련 수치
     const timelineStart = parseFloat(DOM.propTimelineStart.value) || 0;
-    const duration = parseFloat(DOM.propDuration.value) || 0.1;
-    const sourceStart = parseFloat(DOM.propSourceStart.value) || 0;
-    
     clip.timelineStart = timelineStart;
-    clip.sourceStart = sourceStart;
     
-    if (clip.assetId) {
-        const asset = STATE.assets.find(a => a.id === clip.assetId);
-        if (asset) {
-            clip.sourceEnd = Math.min(asset.duration, sourceStart + duration);
-            clip.duration = parseFloat((clip.sourceEnd - sourceStart).toFixed(2));
-        } else {
-            clip.duration = duration;
-            clip.sourceEnd = sourceStart + duration;
-        }
+    const asset = clip.assetId ? STATE.assets.find(a => a.id === clip.assetId) : null;
+    const assetDuration = asset ? asset.duration : 1000.0;
+
+    if (e && e.target === DOM.propSpeed) {
+        // 1. 배속 슬라이더가 조절된 경우: 원본 컷 구간(sourceStart ~ sourceEnd) 고정, 타임라인 출력 지속시간(duration) 변경
+        const sourceDur = clip.sourceEnd - clip.sourceStart;
+        clip.duration = parseFloat((sourceDur / speed).toFixed(2));
+        DOM.propDuration.value = clip.duration;
+    } else if (e && e.target === DOM.propDuration) {
+        // 2. 타임라인 출력 지속시간이 직접 입력된 경우: 원본 컷 종료(sourceEnd) 변경
+        const duration = parseFloat(DOM.propDuration.value) || 0.1;
+        clip.sourceEnd = Math.min(assetDuration, clip.sourceStart + duration * speed);
+        clip.duration = parseFloat(((clip.sourceEnd - clip.sourceStart) / speed).toFixed(2));
+        DOM.propSourceEnd.value = clip.sourceEnd;
+    } else if (e && (e.target === DOM.propSourceStart || e.target === DOM.propSourceEnd)) {
+        // 3. 원본 컷 시작/종료 지점이 입력된 경우: 타임라인 출력 지속시간(duration) 재계산
+        const sourceStart = parseFloat(DOM.propSourceStart.value) || 0;
+        const sourceEnd = parseFloat(DOM.propSourceEnd.value) || 0.1;
+        clip.sourceStart = Math.min(assetDuration, sourceStart);
+        clip.sourceEnd = Math.min(assetDuration, Math.max(clip.sourceStart + 0.1, sourceEnd));
+        clip.duration = parseFloat(((clip.sourceEnd - clip.sourceStart) / speed).toFixed(2));
+        
+        DOM.propSourceStart.value = clip.sourceStart;
+        DOM.propSourceEnd.value = clip.sourceEnd;
+        DOM.propDuration.value = clip.duration;
     } else {
-        clip.duration = duration;
-        clip.sourceEnd = sourceStart + duration;
+        // 4. 드래그 조작 또는 기타 초기 연동: 슬라이더 수치를 그대로 신뢰
+        const sourceStart = parseFloat(DOM.propSourceStart.value) || 0;
+        const sourceEnd = parseFloat(DOM.propSourceEnd.value) || 0.1;
+        clip.sourceStart = sourceStart;
+        clip.sourceEnd = sourceEnd;
+        
+        if (!e) {
+            clip.duration = parseFloat(((clip.sourceEnd - clip.sourceStart) / speed).toFixed(2));
+            DOM.propDuration.value = clip.duration;
+        } else {
+            // 마우스 드래그 트리밍 시에는 mousemove 리스너가 직접 clip.duration을 연산하여 업데이트하므로 값을 덮어쓰지 않음
+            const duration = parseFloat(DOM.propDuration.value) || 0.1;
+            clip.duration = duration;
+        }
     }
 
     // 트랙 고유 속성
@@ -990,6 +1042,7 @@ function splitSelectedClip() {
         return;
     }
 
+    const speed = clip.speed || 1.0;
     // 전반부/후반부 구간 계산
     const firstPartDuration = splitTime - clip.timelineStart;
     const secondPartDuration = clip.timelineStart + clip.duration - splitTime;
@@ -997,7 +1050,7 @@ function splitSelectedClip() {
     const originalSourceEnd = clip.sourceEnd;
     
     // 1. 기존 클립을 앞부분으로 변경
-    clip.sourceEnd = parseFloat((clip.sourceStart + firstPartDuration).toFixed(2));
+    clip.sourceEnd = parseFloat((clip.sourceStart + firstPartDuration * speed).toFixed(2));
     clip.duration = parseFloat(firstPartDuration.toFixed(2));
 
     // 2. 뒷부분을 새로운 복제 클립으로 생성
@@ -1246,9 +1299,11 @@ function updateTimelineClipsUI() {
                 `</div>`;
         }
 
+        const speedLabel = (clip.track === 'video1' || clip.track === 'video2') ? `<span class="clip-speed-badge">${(clip.speed || 1.0).toFixed(1)}x</span>` : '';
+
         el.innerHTML = `
             <div class="trim-handle trim-handle-left"></div>
-            <span class="clip-name">${clip.name || (clip.overlayType === 'text' ? clip.text : '이미지')}</span>
+            <span class="clip-name">${clip.name || (clip.overlayType === 'text' ? clip.text : '이미지')} ${speedLabel}</span>
             <span class="clip-duration-info">${clip.duration.toFixed(1)}s [${clip.sourceStart.toFixed(1)}~${clip.sourceEnd.toFixed(1)}]</span>
             ${effectsBadges}
             <div class="trim-handle trim-handle-right"></div>
@@ -1278,18 +1333,19 @@ function updateTimelineClipsUI() {
                     const diffX = moveEvent.clientX - startX;
                     const diffTime = diffX / STATE.timelineZoom;
 
+                    const speed = clip.speed || 1.0;
                     if (isLeftHandle) {
                         // 왼쪽 에지 드래그 (시작 위치 변경 및 트리밍 확대/축소)
                         let newStart = startLeft + diffTime;
-                        let newSrcStart = startSrcStart + diffTime;
+                        let newSrcStart = startSrcStart + diffTime * speed;
                         
                         if (newSrcStart < 0) {
-                            newStart = startLeft - startSrcStart;
+                            newStart = startLeft - startSrcStart / speed;
                             newSrcStart = 0;
                         }
                         if (newStart < 0) {
                             newStart = 0;
-                            newSrcStart = startSrcStart - startLeft;
+                            newSrcStart = startSrcStart - startLeft * speed;
                         }
                         
                         const newDur = startLeft + startWidth - newStart;
@@ -1301,11 +1357,11 @@ function updateTimelineClipsUI() {
                     } else if (isRightHandle) {
                         // 오른쪽 에지 드래그 (종료 지점 트리밍)
                         let newDur = startWidth + diffTime;
-                        let newSrcEnd = startSrcEnd + diffTime;
+                        let newSrcEnd = startSrcEnd + diffTime * speed;
                         
                         if (newSrcEnd > assetDuration) {
                             newSrcEnd = assetDuration;
-                            newDur = assetDuration - startSrcStart;
+                            newDur = (assetDuration - startSrcStart) / speed;
                         }
                         
                         if (newDur > 0.1) {
@@ -1591,7 +1647,7 @@ function drawVideoClip(clip, time, x, y, w, h) {
     }
 
     const clipElapsed = time - clip.timelineStart;
-    const sourcePlayTime = clip.sourceStart + clipElapsed;
+    const sourcePlayTime = clip.sourceStart + clipElapsed * (clip.speed || 1.0);
     
     // 비디오 엘리먼트 동기 프레임 탐색 (ReadyState 검증으로 InvalidStateError 방지)
     // 재생 중(STATE.isPlaying)일 때는 updateActivePlayersStates()가 싱크 조절을 전담하므로,
@@ -1809,7 +1865,8 @@ function updateActivePlayersStates() {
         
         if (activeClip && STATE.isPlaying) {
             const clipElapsed = time - activeClip.timelineStart;
-            const targetSrcTime = activeClip.sourceStart + clipElapsed;
+            const speed = activeClip.speed || 1.0;
+            const targetSrcTime = activeClip.sourceStart + clipElapsed * speed;
             
             // 영상 및 음원 재생 싱크 기동
             if (player.paused) {
@@ -1820,7 +1877,7 @@ function updateActivePlayersStates() {
                         console.warn("updateActivePlayersStates currentTime 설정 실패:", e);
                     }
                 }
-                player.playbackRate = 1.0; // 속도 초기화
+                player.playbackRate = speed; // 속도 적용
                 STATE.playerLastSeekTimes[asset.id] = now;
                 player.play().catch(e => console.log("자동재생 실패:", e));
             } else {
@@ -1839,27 +1896,27 @@ function updateActivePlayersStates() {
                                 console.warn("updateActivePlayersStates currentTime 설정 실패:", e);
                             }
                         }
-                        player.playbackRate = 1.0;
+                        player.playbackRate = speed;
                         STATE.playerLastSeekTimes[asset.id] = now;
                     }
                 } else if (absDiff > 0.08) {
                     // 0.08초 ~ 1.5초 편차는 재생 속도를 미세 조절하여 끊김이나 지직거림 없이 동기화
                     if (diff > 0) {
-                        player.playbackRate = 0.96; // 플레이어가 빠르므로 속도를 약간 늦춤 (96% 속도)
+                        player.playbackRate = speed * 0.96; // 플레이어가 빠르므로 속도를 약간 늦춤 (96% 속도)
                     } else {
-                        player.playbackRate = 1.04; // 플레이어가 느리므로 속도를 약간 높임 (104% 속도)
+                        player.playbackRate = speed * 1.04; // 플레이어가 느리므로 속도를 약간 높임 (104% 속도)
                     }
                 } else {
                     // 안정 범위 이내면 정상 재생 속도 복구
-                    if (player.playbackRate !== 1.0) {
-                        player.playbackRate = 1.0;
+                    if (player.playbackRate !== speed) {
+                        player.playbackRate = speed;
                     }
                 }
             }
         } else {
             if (!player.paused) {
                 player.pause();
-                player.playbackRate = 1.0; // 일시정지 시 속도 초기화
+                player.playbackRate = 1.0; // 속도 초기화
             }
         }
     });
@@ -1881,9 +1938,10 @@ function syncHiddenPlayersTime() {
         const activeClip = STATE.clips.find(c => c.assetId === asset.id && time >= c.timelineStart && time < c.timelineStart + c.duration);
         if (activeClip) {
             const clipElapsed = time - activeClip.timelineStart;
+            const speed = activeClip.speed || 1.0;
             if (player.readyState >= 1) {
                 try {
-                    player.currentTime = activeClip.sourceStart + clipElapsed;
+                    player.currentTime = activeClip.sourceStart + clipElapsed * speed;
                 } catch (e) {
                     console.warn("syncHiddenPlayersTime currentTime 설정 실패:", e);
                 }
@@ -2046,7 +2104,10 @@ function loadProjectFile(e) {
             }
 
             // 프로젝트 복구 시작
-            STATE.clips = data.clips;
+            STATE.clips = data.clips.map(c => ({
+                ...c,
+                speed: c.speed || 1.0
+            }));
             STATE.totalDuration = data.totalDuration;
             STATE.outputWidth = data.outputWidth || 1280;
             STATE.outputHeight = data.outputHeight || 720;

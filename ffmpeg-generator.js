@@ -5,6 +5,23 @@
  * 로컬 Windows 환경에서 작동하는 FFmpeg 명령어와 실행용 배치(.bat) 파일을 생성합니다.
  */
 
+function getAudioTempoFilter(speed) {
+    let filters = [];
+    let remaining = speed;
+    while (remaining > 2.0) {
+        filters.push("atempo=2.0");
+        remaining /= 2.0;
+    }
+    while (remaining < 0.5) {
+        filters.push("atempo=0.5");
+        remaining /= 0.5;
+    }
+    if (Math.abs(remaining - 1.0) > 0.01) {
+        filters.push(`atempo=${remaining.toFixed(4)}`);
+    }
+    return filters.join(",");
+}
+
 function generateFFmpegCommand(projectState) {
     const { clips, assets } = projectState;
     
@@ -53,21 +70,24 @@ function generateFFmpegCommand(projectState) {
     // 1. Video Track 1 클립 입력 정의
     const video1Mappings = video1Clips.map((clip, index) => {
         const inputIdx = currentInputIndex++;
-        inputs.push(`-ss ${formatTime(clip.sourceStart)} -t ${formatTime(clip.duration)} -i "${clip.localPath}"`);
+        const srcDur = clip.sourceEnd - clip.sourceStart;
+        inputs.push(`-ss ${formatTime(clip.sourceStart)} -t ${formatTime(srcDur)} -i "${clip.localPath}"`);
         return { clip, inputIdx };
     });
 
     // 2. Video Track 2 (PIP) 클립 입력 정의
     const video2Mappings = video2Clips.map((clip, index) => {
         const inputIdx = currentInputIndex++;
-        inputs.push(`-ss ${formatTime(clip.sourceStart)} -t ${formatTime(clip.duration)} -i "${clip.localPath}"`);
+        const srcDur = clip.sourceEnd - clip.sourceStart;
+        inputs.push(`-ss ${formatTime(clip.sourceStart)} -t ${formatTime(srcDur)} -i "${clip.localPath}"`);
         return { clip, inputIdx };
     });
 
     // 3. Audio (BGM) 클립 입력 정의
     const audioMappings = audioClips.map((clip, index) => {
         const inputIdx = currentInputIndex++;
-        inputs.push(`-ss ${formatTime(clip.sourceStart)} -t ${formatTime(clip.duration)} -i "${clip.localPath}"`);
+        const srcDur = clip.sourceEnd - clip.sourceStart;
+        inputs.push(`-ss ${formatTime(clip.sourceStart)} -t ${formatTime(srcDur)} -i "${clip.localPath}"`);
         return { clip, inputIdx };
     });
 
@@ -99,6 +119,10 @@ function generateFFmpegCommand(projectState) {
         vFilters.push(`scale=w='if(gte(iw/ih,${outW}/${outH}),${outW},-1)':h='if(gte(iw/ih,${outW}/${outH}),-1,${outH})'`);
         vFilters.push(`pad=${outW}:${outH}:(${outW}-iw)/2:(${outH}-ih)/2:black`);
         vFilters.push("setsar=1");
+        
+        if (clip.speed && clip.speed !== 1.0) {
+            vFilters.push(`setpts=PTS/${clip.speed}`);
+        }
         vFilters.push(`fps=${outFPS}`);
         
         // 3. 비디오 효과 처리
@@ -123,6 +147,13 @@ function generateFFmpegCommand(projectState) {
         // 4. 오디오 필터 처리
         let aFilters = [];
         aFilters.push(`volume=${clip.volume !== undefined ? clip.volume : 1.0}`);
+        
+        if (clip.speed && clip.speed !== 1.0) {
+            const atempoFilter = getAudioTempoFilter(clip.speed);
+            if (atempoFilter) {
+                aFilters.push(atempoFilter);
+            }
+        }
         aFilters.push("aresample=44100");
         
         if (clip.effects && clip.effects.includes('reverse')) {
@@ -152,6 +183,10 @@ function generateFFmpegCommand(projectState) {
         
         pipVFilters.push(`scale=${pipW}:${pipH}`);
         pipVFilters.push("setsar=1");
+        
+        if (clip.speed && clip.speed !== 1.0) {
+            pipVFilters.push(`setpts=PTS/${clip.speed}`);
+        }
         pipVFilters.push(`fps=${outFPS}`);
         
         if (clip.effects && clip.effects.length > 0) {
@@ -175,6 +210,13 @@ function generateFFmpegCommand(projectState) {
         // PIP 오디오 처리 및 시간 지연(adelay) 적용
         let pipAFilters = [];
         pipAFilters.push(`volume=${clip.volume !== undefined ? clip.volume : 1.0}`);
+        
+        if (clip.speed && clip.speed !== 1.0) {
+            const atempoFilter = getAudioTempoFilter(clip.speed);
+            if (atempoFilter) {
+                pipAFilters.push(atempoFilter);
+            }
+        }
         pipAFilters.push("aresample=44100");
         if (clip.effects && clip.effects.includes('reverse')) {
             pipAFilters.push("areverse");
