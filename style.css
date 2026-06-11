@@ -466,14 +466,15 @@ body {
 .panel-center {
     border-right: 1px solid var(--border-color);
     background: #09090b;
+    flex-direction: row !important;
 }
 
 .preview-container {
     flex: 1 1 0;
-    min-height: 220px;
+    min-width: 300px;
     display: flex;
     flex-direction: column;
-    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
     background: #111115;
 }
 
@@ -484,7 +485,7 @@ body {
     align-items: center;
     justify-content: center;
     background: #000000;
-    min-height: 80px;
+    min-height: 120px;
 }
 
 #preview-canvas {
@@ -613,8 +614,8 @@ body {
 
 /* FFmpeg Output Code Editor Pane */
 .ffmpeg-script-container {
-    flex: 0 1 200px;
-    min-height: 60px;
+    flex: 0 0 340px;
+    min-width: 220px;
     display: flex;
     flex-direction: column;
     background: var(--bg-panel);
