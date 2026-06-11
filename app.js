@@ -132,13 +132,16 @@ window.addEventListener('DOMContentLoaded', () => {
 function initApp() {
     // 1. 이벤트 바인딩
     setupEventListeners();
-    
+
     // 2. 초기 드로잉
     updateTimelineZoom();
     updatePlayheadPosition();
     drawRuler();
     renderPreview();
     updateFFmpegCommand();
+
+    // 3. 패널 크기 조절 기능 초기화
+    initResizablePanels();
 }
 
 function setupEventListeners() {
@@ -2383,5 +2386,128 @@ function getCanvasFontFamily(fontKey) {
             return "'Arial', sans-serif";
         default:
             return "'Malgun Gothic', 'Noto Sans KR', 'Outfit', sans-serif";
+    }
+}
+
+/* ========================================================================
+   패널 크기 조절 (Resizable Panels)
+   ======================================================================== */
+function initResizablePanels() {
+    const DEFAULTS = {
+        'left-center':    { defaultSize: 300, min: 180, max: 600 },
+        'preview-script': { defaultSize: 340, min: 180, max: 700 },
+        'center-right':   { defaultSize: 340, min: 220, max: 600 },
+        'main-timeline':  { defaultSize: 280, min: 150, max: 600 }
+    };
+
+    const handles = document.querySelectorAll('.resize-handle');
+    let activeHandle = null;
+    let startX = 0;
+    let startY = 0;
+    let startSize = 0;
+    let targetElement = null;
+
+    handles.forEach(handle => {
+        // 드래그 시작
+        handle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            activeHandle = handle;
+            const handleId = handle.dataset.handle;
+
+            if (handleId === 'left-center') {
+                targetElement = document.getElementById('panel-media');
+                startX = e.clientX;
+                startSize = targetElement.offsetWidth;
+                document.body.classList.add('resizing');
+            } else if (handleId === 'preview-script') {
+                targetElement = document.querySelector('.ffmpeg-script-container');
+                startX = e.clientX;
+                startSize = targetElement.offsetWidth;
+                document.body.classList.add('resizing');
+            } else if (handleId === 'center-right') {
+                targetElement = document.getElementById('panel-properties');
+                startX = e.clientX;
+                startSize = targetElement.offsetWidth;
+                document.body.classList.add('resizing');
+            } else if (handleId === 'main-timeline') {
+                targetElement = document.querySelector('.app-timeline');
+                startY = e.clientY;
+                startSize = targetElement.offsetHeight;
+                document.body.classList.add('resizing-row');
+            }
+
+            handle.classList.add('active');
+            document.addEventListener('mousemove', onResizeMove);
+            document.addEventListener('mouseup', onResizeEnd);
+        });
+
+        // 더블클릭으로 기본 크기 복원
+        handle.addEventListener('dblclick', () => {
+            const handleId = handle.dataset.handle;
+            const config = DEFAULTS[handleId];
+            let el;
+
+            if (handleId === 'left-center') {
+                el = document.getElementById('panel-media');
+            } else if (handleId === 'preview-script') {
+                el = document.querySelector('.ffmpeg-script-container');
+            } else if (handleId === 'center-right') {
+                el = document.getElementById('panel-properties');
+            } else if (handleId === 'main-timeline') {
+                el = document.querySelector('.app-timeline');
+            }
+
+            if (el) {
+                el.style.flex = `0 0 ${config.defaultSize}px`;
+                drawRuler();
+            }
+        });
+    });
+
+    // 드래그 이동
+    function onResizeMove(e) {
+        if (!activeHandle || !targetElement) return;
+
+        const handleId = activeHandle.dataset.handle;
+        const config = DEFAULTS[handleId];
+        let newSize;
+
+        if (handleId === 'left-center') {
+            // 좌측 패널: 오른쪽으로 드래그 → 확대
+            newSize = startSize + (e.clientX - startX);
+        } else if (handleId === 'preview-script') {
+            // FFmpeg 스크립트: 오른쪽으로 드래그 → 축소
+            newSize = startSize - (e.clientX - startX);
+        } else if (handleId === 'center-right') {
+            // 우측 패널: 오른쪽으로 드래그 → 축소
+            newSize = startSize - (e.clientX - startX);
+        } else if (handleId === 'main-timeline') {
+            // 타임라인: 위로 드래그 → 확대
+            newSize = startSize + (startY - e.clientY);
+        }
+
+        const clamped = Math.max(config.min, Math.min(config.max, newSize));
+        targetElement.style.flex = `0 0 ${clamped}px`;
+    }
+
+    // 드래그 종료
+    function onResizeEnd() {
+        if (activeHandle) {
+            activeHandle.classList.remove('active');
+        }
+
+        activeHandle = null;
+        targetElement = null;
+
+        document.body.classList.remove('resizing');
+        document.body.classList.remove('resizing-row');
+
+        document.removeEventListener('mousemove', onResizeMove);
+        document.removeEventListener('mouseup', onResizeEnd);
+
+        // 레이아웃 변경 후 타임라인 눈금자 다시 그리기
+        drawRuler();
     }
 }

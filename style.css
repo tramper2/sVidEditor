@@ -259,10 +259,11 @@ body {
 
 /* 2. Main Workspace Layout */
 .app-main {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 300px 1fr 340px;
-    height: calc(100vh - 60px - 280px);
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: row;
+    height: auto;
+    min-height: 0;
     overflow: hidden;
     background: var(--bg-app);
 }
@@ -306,6 +307,9 @@ body {
 /* Left Sidebar Elements */
 #panel-media {
     border-left: none;
+    flex: 0 0 300px;
+    min-width: 180px;
+    max-width: 600px;
 }
 
 .media-importer {
@@ -464,17 +468,18 @@ body {
 
 /* Center Panel (Monitor and Command Area) */
 .panel-center {
-    border-right: 1px solid var(--border-color);
+    border-right: none;
     background: #09090b;
     flex-direction: row !important;
+    flex: 1 1 0;
+    min-width: 500px;
 }
 
 .preview-container {
     flex: 1 1 0;
-    min-width: 300px;
+    min-width: 250px;
     display: flex;
     flex-direction: column;
-    border-right: 1px solid var(--border-color);
     background: #111115;
 }
 
@@ -615,7 +620,8 @@ body {
 /* FFmpeg Output Code Editor Pane */
 .ffmpeg-script-container {
     flex: 0 0 340px;
-    min-width: 220px;
+    min-width: 180px;
+    max-width: 700px;
     display: flex;
     flex-direction: column;
     background: var(--bg-panel);
@@ -649,7 +655,10 @@ body {
 /* Right Properties Inspector Panel */
 #panel-properties {
     border-right: none;
-    border-left: 1px solid var(--border-color);
+    border-left: none;
+    flex: 0 0 340px;
+    min-width: 220px;
+    max-width: 600px;
 }
 
 .properties-empty-msg {
@@ -857,7 +866,8 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* 3. Bottom Timeline Editor Panel */
 .app-timeline {
-    height: 280px;
+    flex: 0 0 280px;
+    min-height: 150px;
     background: var(--bg-panel);
     border-top: 1px solid var(--border-color);
     display: flex;
@@ -1187,11 +1197,61 @@ input[type="range"]::-webkit-slider-thumb {
     position: relative;
 }
 
-/* Media Queries for Screens */
-@media (max-width: 1200px) {
-    .app-main {
-        grid-template-columns: 240px 1fr 280px;
-    }
+/* ========================================================================
+   Resizable Panel Drag Handles
+   ======================================================================== */
+.resize-handle {
+    flex-shrink: 0;
+    z-index: 50;
+    transition: background-color 0.15s ease;
+}
+
+.resize-handle-v {
+    width: 5px;
+    cursor: col-resize;
+    background: var(--border-color);
+    align-self: stretch;
+}
+
+.resize-handle-v:hover,
+.resize-handle-v.active {
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent-glow);
+}
+
+.resize-handle-h {
+    height: 5px;
+    cursor: row-resize;
+    background: var(--border-color);
+    width: 100%;
+}
+
+.resize-handle-h:hover,
+.resize-handle-h.active {
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent-glow);
+}
+
+body.resizing {
+    cursor: col-resize !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+body.resizing-row {
+    cursor: row-resize !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+body.resizing *,
+body.resizing-row * {
+    pointer-events: none !important;
+}
+
+body.resizing .resize-handle,
+body.resizing-row .resize-handle {
+    pointer-events: auto !important;
 }
 
 /* Hidden Players Container for rendering and audio output */
