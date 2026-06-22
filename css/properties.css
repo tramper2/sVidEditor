@@ -1,0 +1,212 @@
+/* Right Properties Inspector Panel */
+#panel-properties {
+    border-right: none;
+    border-left: none;
+    flex: 0 0 340px;
+    min-width: 220px;
+    max-width: 600px;
+}
+
+.properties-empty-msg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.properties-empty-msg .pointer-icon {
+    font-size: 1.8rem;
+    margin-bottom: 12px;
+    color: var(--text-dim);
+}
+
+.properties-empty-msg p {
+    font-size: 0.8rem;
+    line-height: 1.5;
+}
+
+/* Custom form elements inside Properties */
+.properties-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.properties-form.hide {
+    display: none;
+}
+
+.clip-type-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--accent);
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 8px;
+}
+
+.property-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.property-group label {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.property-group input[type="text"],
+.property-group input[type="number"],
+.property-group select,
+.property-group textarea {
+    background: #09090b;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: var(--text-main);
+    font-family: var(--font-main);
+    font-size: 0.8rem;
+    outline: none;
+    transition: border 0.15s ease;
+}
+
+.property-group input:focus,
+.property-group select:focus,
+.property-group textarea:focus {
+    border-color: var(--primary);
+}
+
+.property-group input.input-disabled {
+    background: var(--secondary);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+.highlight-group {
+    background: rgba(124, 77, 255, 0.04);
+    border: 1px solid rgba(124, 77, 255, 0.15);
+    border-radius: 6px;
+    padding: 8px;
+}
+
+.highlight-group label {
+    color: var(--accent);
+}
+
+.highlight-group h4 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 6px;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.15);
+    padding-bottom: 4px;
+}
+
+.property-row {
+    display: flex;
+    gap: 8px;
+}
+
+.property-row .property-group {
+    flex: 1;
+}
+
+.property-group .sub-text {
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+.help-tip {
+    cursor: help;
+    color: var(--accent);
+    margin-left: 2px;
+}
+
+/* Custom ranges styling */
+input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    background: transparent;
+}
+input[type="range"]:focus {
+    outline: none;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 4px;
+    cursor: pointer;
+    background: var(--secondary);
+    border-radius: 2px;
+}
+input[type="range"]::-webkit-slider-thumb {
+    height: 12px;
+    width: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    -webkit-appearance: none;
+    margin-top: -4px;
+    box-shadow: 0 0 4px var(--accent);
+}
+
+.speed-control-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.speed-presets {
+    display: flex;
+    gap: 6px;
+}
+
+.btn-preset {
+    flex: 1;
+    background: var(--secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 6px 0;
+    font-size: 0.72rem;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: var(--font-main);
+    font-weight: 500;
+}
+
+.btn-preset:hover {
+    background: var(--secondary-hover);
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 5px var(--accent-glow);
+}
+
+.clip-speed-badge {
+    font-size: 0.6rem;
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--accent);
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-left: 5px;
+    font-weight: 700;
+}
+
+.property-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.property-actions button {
+    font-size: 0.8rem;
+    padding: 10px;
+}
+

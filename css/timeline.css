@@ -1,0 +1,333 @@
+/* 3. Bottom Timeline Editor Panel */
+.app-timeline {
+    flex: 0 0 280px;
+    min-height: 150px;
+    background: var(--bg-panel);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.timeline-toolbar {
+    height: 40px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.toolbar-left, .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.toolbar-right .zoom-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+.toolbar-right input[type="range"] {
+    width: 100px;
+}
+.toolbar-right #zoom-value {
+    font-size: 0.72rem;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+}
+
+/* Scroll Area for Tracks */
+.timeline-tracks-container {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+}
+
+/* Ruler */
+.timeline-ruler-wrapper {
+    display: flex;
+    height: 28px;
+    background: rgba(0, 0, 0, 0.25);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+.track-label-placeholder {
+    width: 140px;
+    min-width: 140px;
+    border-right: 1px solid var(--border-color);
+    background: var(--bg-panel);
+    display: flex;
+    align-items: center;
+    padding-left: 14px;
+}
+
+.track-label-placeholder #timeline-fps-info {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.timeline-ruler {
+    flex: 1;
+    display: block;
+    height: 28px;
+    cursor: ew-resize;
+}
+
+/* Tracks Content */
+.tracks-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Playhead Line */
+.playhead {
+    position: absolute;
+    top: 0;
+    left: 140px; /* Offset label width */
+    height: 100%;
+    pointer-events: none;
+    z-index: 30;
+    transition: left 0.05s linear; /* Smooth visual scrub */
+}
+
+.playhead-handle {
+    position: absolute;
+    top: -28px; /* Inside Ruler */
+    left: -6px;
+    width: 12px;
+    height: 12px;
+    background: var(--accent);
+    transform: rotate(45deg);
+    box-shadow: 0 0 6px var(--accent);
+    pointer-events: auto;
+    cursor: ew-resize;
+}
+
+.playhead-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 200px; /* Extended to bottom */
+    background: var(--accent);
+    box-shadow: 0 0 5px var(--accent-glow);
+}
+
+/* Timeline Track Rows */
+.timeline-track-row {
+    display: flex;
+    height: 48px;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.01);
+}
+
+.timeline-track-row:last-child {
+    border-bottom: none;
+}
+
+.track-info {
+    width: 140px;
+    min-width: 140px;
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-left: 14px;
+    z-index: 10;
+}
+
+.track-title {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.track-title i {
+    width: 12px;
+    text-align: center;
+}
+
+#track-video1 .track-title i { color: #bb86fc; }
+#track-video2 .track-title i { color: #03dac6; }
+#track-audio .track-title i { color: #00e676; }
+#track-overlay .track-title i { color: #ff9100; }
+
+.track-subtitle {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+.track-lane {
+    flex: 1;
+    position: relative;
+    height: 100%;
+    background-image: linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 15px 100%; /* Default scale matching zoom */
+    overflow: hidden;
+}
+
+.track-lane.dragover-lane {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Timeline Add Button specifically for Subtitles */
+.btn-timeline-add {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--secondary);
+    border: 1px solid var(--border-color-hover);
+    color: var(--text-muted);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 0.65rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+    z-index: 15;
+}
+
+.btn-timeline-add:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(0, 229, 255, 0.05);
+}
+
+/* Timeline Visual Clips */
+.timeline-clip {
+    position: absolute;
+    top: 4px;
+    height: 38px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 8px;
+    overflow: hidden;
+    user-select: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.timeline-clip:hover {
+    filter: brightness(1.1);
+}
+
+.timeline-clip.selected {
+    border-color: #ffffff !important;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.4), inset 0 0 4px rgba(255, 255, 255, 0.2);
+}
+
+.timeline-clip.drag-filter-over {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 12px var(--accent);
+}
+
+/* Color types for clips */
+.clip-video1 {
+    background: var(--clip-video-main);
+    border-color: rgba(124, 77, 255, 0.4);
+}
+.clip-video2 {
+    background: var(--clip-video-pip);
+    border-color: rgba(0, 229, 255, 0.4);
+}
+.clip-audio-type {
+    background: var(--clip-audio);
+    border-color: rgba(0, 230, 118, 0.4);
+}
+.clip-overlay-type {
+    background: var(--clip-overlay);
+    border-color: rgba(255, 145, 0, 0.4);
+}
+
+.clip-name {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+}
+
+.clip-duration-info {
+    font-size: 0.55rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    margin-top: 1px;
+    font-family: monospace;
+    pointer-events: none;
+}
+
+.clip-effects-badge {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    display: flex;
+    gap: 3px;
+}
+
+.effect-badge {
+    font-size: 0.5rem;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 1px 3px;
+    border-radius: 3px;
+    color: var(--accent);
+    border: 1px solid rgba(0, 229, 255, 0.2);
+}
+
+/* Trim Resize Handles */
+.trim-handle {
+    position: absolute;
+    top: 0;
+    width: 6px;
+    height: 100%;
+    cursor: ew-resize;
+    background: rgba(255, 255, 255, 0.1);
+    transition: background 0.15s ease;
+}
+
+.trim-handle:hover {
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.trim-handle-left {
+    left: 0;
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+.trim-handle-right {
+    right: 0;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+/* Form Section utility display classes */
+.hide {
+    display: none !important;
+}
+
+/* Tooltips */
+[title] {
+    position: relative;
+}
+

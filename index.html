@@ -11,7 +11,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=1.1.7">
+    <!-- 스타일시트 (영역별 분할: base 변수 우선 로드 → layout-extras 마지막) -->
+    <link rel="stylesheet" href="css/base.css?v=2.0.0">
+    <link rel="stylesheet" href="css/header.css?v=2.0.0">
+    <link rel="stylesheet" href="css/panels.css?v=2.0.0">
+    <link rel="stylesheet" href="css/preview.css?v=2.0.0">
+    <link rel="stylesheet" href="css/properties.css?v=2.0.0">
+    <link rel="stylesheet" href="css/timeline.css?v=2.0.0">
+    <link rel="stylesheet" href="css/layout-extras.css?v=2.0.0">
 </head>
 <body>
     <div class="app-container">
@@ -462,8 +469,17 @@
     <!-- 숨김 오디오/비디오 플레이어 elements (HTML5 Canvas 프리뷰 추출 프레임/볼륨 믹싱용) -->
     <div id="hidden-players-container" class="hidden-players"></div>
 
-    <!-- 로직 스크립트 불러오기 -->
-    <script src="ffmpeg-generator.js?v=1.1.7"></script>
-    <script src="app.js?v=1.1.7"></script>
+    <!-- 로직 스크립트 불러오기 (전역 스코프 순서 로드: state → utils → ffmpeg-generator → 기능 모듈 → app 진입점) -->
+    <script src="js/state.js?v=2.0.0"></script>
+    <script src="js/utils.js?v=2.0.0"></script>
+    <script src="ffmpeg-generator.js?v=2.0.0"></script>
+    <script src="js/media.js?v=2.0.0"></script>
+    <script src="js/timeline-core.js?v=2.0.0"></script>
+    <script src="js/timeline-ui.js?v=2.0.0"></script>
+    <script src="js/preview.js?v=2.0.0"></script>
+    <script src="js/playback.js?v=2.0.0"></script>
+    <script src="js/ffmpeg-io.js?v=2.0.0"></script>
+    <script src="js/canvas-interaction.js?v=2.0.0"></script>
+    <script src="app.js?v=2.0.0"></script>
 </body>
 </html>

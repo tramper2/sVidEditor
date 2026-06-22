@@ -1,0 +1,74 @@
+/* ========================================================================
+   sVidEditor Premium Design System (Vanilla CSS)
+   ======================================================================== */
+
+:root {
+    --bg-app: #0c0c0e;
+    --bg-panel: #16161a;
+    --bg-panel-overlay: rgba(22, 22, 26, 0.7);
+    --border-color: rgba(255, 255, 255, 0.07);
+    --border-color-hover: rgba(255, 255, 255, 0.15);
+    
+    /* Brand Colors & Gradients */
+    --primary: #7c4dff;
+    --primary-hover: #9e7dff;
+    --primary-gradient: linear-gradient(135deg, #7c4dff 0%, #00e5ff 100%);
+    --secondary: #2c2c35;
+    --secondary-hover: #3d3d4a;
+    
+    /* UI Accent Status Colors */
+    --accent: #00e5ff;
+    --accent-glow: rgba(0, 229, 255, 0.25);
+    --danger: #ff1744;
+    --danger-hover: #ff4d6a;
+    --success: #00e676;
+    --warning: #ff9100;
+    
+    /* Clip Type Colors (Timeline) */
+    --clip-video-main: rgba(124, 77, 255, 0.35);
+    --clip-video-main-border: #7c4dff;
+    --clip-video-pip: rgba(0, 229, 255, 0.25);
+    --clip-video-pip-border: #00e5ff;
+    --clip-audio: rgba(0, 230, 118, 0.25);
+    --clip-audio-border: #00e676;
+    --clip-overlay: rgba(255, 145, 0, 0.25);
+    --clip-overlay-border: #ff9100;
+    
+    /* Typography */
+    --font-main: 'Outfit', 'Noto Sans KR', sans-serif;
+    --text-main: #f5f5f7;
+    --text-muted: #8e8e93;
+    --text-dim: #545456;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-app);
+    color: var(--text-main);
+    font-family: var(--font-main);
+    font-weight: 400;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+

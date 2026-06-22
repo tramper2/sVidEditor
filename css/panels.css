@@ -1,0 +1,209 @@
+/* 2. Main Workspace Layout */
+.app-main {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: row;
+    height: auto;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--bg-app);
+}
+
+.panel {
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.panel-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.panel-header h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.panel-header h2 i {
+    color: var(--primary);
+}
+
+.panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+/* Left Sidebar Elements */
+#panel-media {
+    border-left: none;
+    flex: 0 0 300px;
+    min-width: 180px;
+    max-width: 600px;
+}
+
+.media-importer {
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 20px 15px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.01);
+    margin-bottom: 15px;
+}
+
+.media-importer:hover, .media-importer.dragover {
+    border-color: var(--accent);
+    background: rgba(0, 229, 255, 0.04);
+}
+
+.media-importer .cloud-icon {
+    font-size: 1.8rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.media-importer p {
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.media-importer .sub-text {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    display: block;
+    margin-bottom: 10px;
+}
+
+.asset-list-container h3, .effects-container h3 {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    margin: 15px 0 10px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.asset-list {
+    list-style: none;
+    max-height: 160px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.asset-list .empty-list-msg {
+    padding: 20px;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.asset-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.75rem;
+    cursor: grab;
+    user-select: none;
+    transition: background 0.15s ease;
+}
+
+.asset-item:last-child {
+    border-bottom: none;
+}
+
+.asset-item:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.asset-icon {
+    margin-right: 8px;
+    font-size: 0.95rem;
+}
+.asset-icon.video { color: #bb86fc; }
+.asset-icon.audio { color: #03dac6; }
+.asset-icon.image { color: #ffb74d; }
+
+.asset-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-right: 6px;
+}
+
+.asset-duration {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Drag & Drop Effects Library */
+.effects-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.effect-item {
+    background: var(--secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    cursor: grab;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.effect-item:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    background: rgba(124, 77, 255, 0.05);
+}
+
+.effect-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 6px;
+    font-size: 0.95rem;
+}
+
+.sepia-color { background: rgba(193, 154, 107, 0.2); color: #c19a6b; }
+.gray-color { background: rgba(255, 255, 255, 0.15); color: #e0e0e0; }
+.reverse-color { background: rgba(240, 98, 146, 0.2); color: #f06292; }
+.zoom-in-color { background: rgba(77, 208, 225, 0.2); color: #4dd0e1; }
+.zoom-out-color { background: rgba(149, 117, 205, 0.2); color: #9575cd; }
+
+.effect-item span {
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
